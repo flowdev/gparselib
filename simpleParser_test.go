@@ -1,6 +1,7 @@
 package gparselib
 
 import (
+	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
@@ -22,9 +23,9 @@ func TestParseNatural(t *testing.T) {
 
 	runTest(t, p, newData("no match", 0, "baaa"), newResult(0, "", nil, 0), 0, 1)
 	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("simple", 0, "3"), newResult(0, "3", 3, -1), 1, 0)
-	runTest(t, p, newData("simple 2", 0, "123"), newResult(0, "123", 123, -1), 3, 0)
-	runTest(t, p, newData("simple 3", 2, "ab123c456"), newResult(2, "123", 123, -1), 5, 0)
+	runTest(t, p, newData("simple", 0, "3"), newResult(0, "3", uint64(3), -1), 1, 0)
+	runTest(t, p, newData("simple 2", 0, "123"), newResult(0, "123", uint64(123), -1), 3, 0)
+	runTest(t, p, newData("simple 3", 2, "ab123c456"), newResult(2, "123", uint64(123), -1), 5, 0)
 	runTest(t, p, newData("error", 2, "ab1234567890123456789012345678901234567890"), newResult(2, "", nil, 2), 2, 1)
 
 	Convey("Parse natural with illegal radix, ...", t, func() {
@@ -73,12 +74,12 @@ func TestParseRegexp(t *testing.T) {
 	runTest(t, pWoV, newData("no match without ^", 0, "baaa"), newResult(0, "", nil, 0), 0, 1)
 	runTest(t, pWv, newData("empty with ^", 0, ""), newResult(0, "", nil, 0), 0, 1)
 	runTest(t, pWoV, newData("empty without ^", 0, ""), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, pWv, newData("simple with ^", 0, "a"), newResult(0, "a", nil, -1), 1, 0)
-	runTest(t, pWoV, newData("simple without ^", 0, "a"), newResult(0, "a", nil, -1), 1, 0)
-	runTest(t, pWv, newData("simple 2 with ^", 0, "aaa 123"), newResult(0, "aaa", nil, -1), 3, 0)
-	runTest(t, pWoV, newData("simple 2 without ^", 0, "aaa 123"), newResult(0, "aaa", nil, -1), 3, 0)
-	runTest(t, pWv, newData("simple 3 with ^", 2, "12aaa3456"), newResult(2, "aaa", nil, -1), 5, 0)
-	runTest(t, pWoV, newData("simple 3 without ^", 2, "12aaa3456"), newResult(2, "aaa", nil, -1), 5, 0)
+	runTest(t, pWv, newData("simple with ^", 0, "a"), newResult(0, "a", "a", -1), 1, 0)
+	runTest(t, pWoV, newData("simple without ^", 0, "a"), newResult(0, "a", "a", -1), 1, 0)
+	runTest(t, pWv, newData("simple 2 with ^", 0, "aaa 123"), newResult(0, "aaa", "aaa", -1), 3, 0)
+	runTest(t, pWoV, newData("simple 2 without ^", 0, "aaa 123"), newResult(0, "aaa", "aaa", -1), 3, 0)
+	runTest(t, pWv, newData("simple 3 with ^", 2, "12aaa3456"), newResult(2, "aaa", "aaa", -1), 5, 0)
+	runTest(t, pWoV, newData("simple 3 without ^", 2, "12aaa3456"), newResult(2, "aaa", "aaa", -1), 5, 0)
 
 	Convey("Parse regexp with illegal regexp, ...", t, func() {
 		So(func() {
@@ -135,58 +136,57 @@ func TestParseSemantics(t *testing.T) {
 }
 
 func newResult(pos int, text string, value interface{}, errPos int) *ParseResult {
-	return &ParseResult{pos: pos, text: text, value: value, errPos: errPos}
+	return &ParseResult{Pos: pos, Text: text, Value: value, ErrPos: errPos}
 }
 func newData(srcName string, srcPos int, srcContent string) *ParseData {
-	src := NewSourceData(srcName, srcContent)
-	src.pos = srcPos
-	return NewParseData(*src)
+	pd := NewParseData(srcName, srcContent)
+	pd.source.pos = srcPos
+	return pd
 }
 
 func runTest(t *testing.T, sp SimpleParseOp, pd *ParseData, er *ParseResult, newSrcPos int, errCount int) {
 	var pd2 *ParseData
-	var goErr error
 	sp.SetOutPort(func(data interface{}) { pd2 = data.(*ParseData) })
-	sp.SetErrorPort(func(err error) { goErr = err })
 	sp.InPort(pd)
 
 	Convey("Simple parsing '"+pd.source.name+"', ...", t, func() {
-		Convey(`... should give no go error.`, func() {
-			So(goErr, ShouldBeNil)
-		})
 		Convey(`... should give the right source position.`, func() {
 			So(pd2.source.pos, ShouldEqual, newSrcPos)
 		})
 		Convey(`... should create a result.`, func() {
-			So(pd2.result, ShouldNotBeNil)
+			So(pd2.Result, ShouldNotBeNil)
 		})
-		if er.value == nil {
-			Convey(`... should create no value.`, func() {
-				So(pd2.result.value, ShouldBeNil)
-			})
-		} else {
-			Convey(`... should create the right value.`, func() {
-				So(pd2.result.value, ShouldEqual, er.value)
-			})
-		}
+		valueTest(pd2.Result.Value, er.Value)
 		Convey(`... should give the right error position.`, func() {
-			So(pd2.result.errPos, ShouldEqual, er.errPos)
+			So(pd2.Result.ErrPos, ShouldEqual, er.ErrPos)
 		})
 		Convey(`... should give the right result position.`, func() {
-			So(pd2.result.pos, ShouldEqual, er.pos)
+			So(pd2.Result.Pos, ShouldEqual, er.Pos)
 		})
 		Convey(`... should give the right result text.`, func() {
-			So(pd2.result.text, ShouldEqual, er.text)
+			So(pd2.Result.Text, ShouldEqual, er.Text)
 		})
 		Convey(`... should give the right errors.`, func() {
 			if errCount <= 0 {
-				So(pd2.result.feedback.Errors, ShouldBeNil)
+				So(pd2.Result.Feedback.Errors, ShouldBeNil)
 			} else {
-				So(len(pd2.result.feedback.Errors), ShouldEqual, errCount)
-				So(pd2.result.feedback.Errors[errCount-1].Error(), ShouldNotBeNil)
+				So(len(pd2.Result.Feedback.Errors), ShouldEqual, errCount)
+				So(pd2.Result.Feedback.Errors[errCount-1].Error(), ShouldNotBeNil)
 			}
 		})
 	})
+}
+func valueTest(actual, expected interface{}) {
+	if expected == nil {
+		Convey(`... should create no value.`, func() {
+			So(actual, ShouldBeNil)
+		})
+	} else {
+		Convey(`... should create the right value.`, func() {
+			So(fmt.Sprintf("%T", actual), ShouldEqual, fmt.Sprintf("%T", expected))
+			So(fmt.Sprintf("%#v", actual), ShouldEqual, fmt.Sprintf("%#v", expected))
+		})
+	}
 }
 
 type SemanticsTestOp struct {
@@ -195,7 +195,7 @@ type SemanticsTestOp struct {
 
 func (s *SemanticsTestOp) InPort(data interface{}) {
 	p := data.(*ParseData)
-	p.result.value = semanticTestValue
+	p.Result.Value = semanticTestValue
 	s.outPort(p)
 }
 func (p *SemanticsTestOp) SetOutPort(outPort func(interface{})) {

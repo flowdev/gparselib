@@ -15,11 +15,11 @@ type Feedback struct {
 }
 
 type ParseResult struct {
-	pos      int
-	text     string
-	value    interface{}
-	errPos   int
-	feedback Feedback
+	Pos      int
+	Text     string
+	Value    interface{}
+	ErrPos   int
+	Feedback Feedback
 }
 
 type SourceData struct {
@@ -30,18 +30,28 @@ type SourceData struct {
 	whereLine   int
 }
 
-func NewSourceData(name string, content string) *SourceData {
-	return &SourceData{name, content, 0, -1, 1}
+func NewSourceData(name string, content string) SourceData {
+	return SourceData{name, content, 0, -1, 1}
+}
+
+type tempData struct {
+	pos        int
+	subResults []*ParseResult
+}
+
+func newTempData(pos, n int) *tempData {
+	return &tempData{pos, make([]*ParseResult, 0, n)}
 }
 
 type ParseData struct {
 	source     SourceData
-	result     *ParseResult
-	subResults []*ParseResult
+	Result     *ParseResult
+	SubResults []*ParseResult
+	tmp        []*tempData
 }
 
-func NewParseData(source SourceData) *ParseData {
-	return &ParseData{source, nil, nil}
+func NewParseData(name string, content string) *ParseData {
+	return &ParseData{NewSourceData(name, content), nil, nil, make([]*tempData, 0, 128)}
 }
 
 type ParseError struct {
@@ -50,6 +60,9 @@ type ParseError struct {
 	baseErr error
 }
 
+func NewParseError(pd *ParseData, pos int, msg string, baseErr error) *ParseError {
+	return &ParseError{where(&pd.source, pos), msg, baseErr}
+}
 func (e *ParseError) Error() string {
 	msg := "ERROR: " + e.where + e.myErr
 	if e.baseErr != nil {
@@ -62,11 +75,7 @@ func (e *ParseError) Error() string {
 
 // ------- Base for all parsers:
 
-type Failable interface {
-	SetErrorPort(func(error))
-}
 type SimpleParseOp interface {
-	Failable
 	InPort(interface{})
 	SetOutPort(func(interface{}))
 	SemInPort(interface{})
@@ -81,8 +90,10 @@ type BaseParseOp struct {
 	semOutPort   func(interface{})
 }
 
-func (p *BaseParseOp) SemInPort(data interface{}) {
-	p.outPort(data)
+func (p *BaseParseOp) SemInPort(dat interface{}) {
+	pd := p.parseData(dat)
+	pd.SubResults = nil
+	p.outPort(dat)
 }
 func (p *BaseParseOp) SetOutPort(outPort func(interface{})) {
 	p.outPort = outPort
@@ -90,14 +101,12 @@ func (p *BaseParseOp) SetOutPort(outPort func(interface{})) {
 func (p *BaseParseOp) SetSemOutPort(semOutPort func(interface{})) {
 	p.semOutPort = semOutPort
 }
-func (p *BaseParseOp) SetErrorPort(errPort func(error)) {
-	p.errorPort = errPort
-}
-func (p *BaseParseOp) HandleSemantics(data interface{}, pd *ParseData) {
-	if p.semOutPort != nil && pd.result.errPos < 0 {
-		p.semOutPort(p.setParseData(data, pd))
+func (p *BaseParseOp) HandleSemantics(dat interface{}, pd *ParseData) {
+	if p.semOutPort != nil && pd.Result.ErrPos < 0 {
+		p.semOutPort(p.setParseData(dat, pd))
 	} else {
-		p.outPort(p.setParseData(data, pd))
+		pd.SubResults = nil
+		p.outPort(p.setParseData(dat, pd))
 	}
 }
 
@@ -107,14 +116,24 @@ func (p *BaseParseOp) HandleSemantics(data interface{}, pd *ParseData) {
 func createMatchedResult(pd *ParseData, n int) {
 	i := pd.source.pos
 	n += i
-	pd.result = &ParseResult{i, pd.source.content[i:n], nil, -1, Feedback{}}
+	pd.Result = &ParseResult{i, pd.source.content[i:n], nil, -1, Feedback{}}
 	pd.source.pos = n
 }
 func createUnmatchedResult(pd *ParseData, i int, msg string, baseErr error) {
 	i += pd.source.pos
-	pd.result = &ParseResult{pd.source.pos, "", nil, i, Feedback{}}
-	pd.result.feedback.Errors = append(pd.result.feedback.Errors, &ParseError{where(&pd.source, i), msg, baseErr})
+	pd.Result = &ParseResult{pd.source.pos, "", nil, i, Feedback{}}
+	AddError(i, msg, baseErr, pd)
 }
+
+func AddError(errPos int, msg string, baseErr error, pd *ParseData) {
+	pd.Result.Feedback.Errors = append(pd.Result.Feedback.Errors, NewParseError(pd, errPos, msg, baseErr))
+}
+func AddFeedback(baseF *Feedback, addF Feedback) {
+	baseF.Errors = append(baseF.Errors, addF.Errors...)
+	baseF.Warnings = append(baseF.Warnings, addF.Warnings...)
+	baseF.Infos = append(baseF.Infos, addF.Infos...)
+}
+
 func where(src *SourceData, pos int) string {
 	if pos >= src.wherePrevNl {
 		return whereForward(src, pos)
@@ -126,7 +145,6 @@ func where(src *SourceData, pos int) string {
 		return whereBackward(src, pos)
 	}
 }
-
 func whereForward(src *SourceData, pos int) string {
 	text := src.content
 	lineNum := src.whereLine  // Line number
@@ -179,6 +197,12 @@ func generateWhereMessage(name string, line int, col int, srcLine string) string
 
 func min(a, b int) int {
 	if a <= b {
+		return a
+	}
+	return b
+}
+func max(a, b int) int {
+	if a >= b {
 		return a
 	}
 	return b

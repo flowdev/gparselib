@@ -78,7 +78,7 @@ func (p *ParseBlockComment) InPort(data interface{}) {
 		}
 		if found {
 			createMatchedResult(pd, lBeg+pos)
-			pd.result.value = ""
+			pd.Result.Value = ""
 		} else {
 			createUnmatchedResult(pd, lBeg, "Block comment isn't closed properly", nil)
 			pd.source.pos += lBeg
@@ -123,7 +123,7 @@ func (p *ParseLineComment) InPort(data interface{}) {
 			l = len(pd.source.content) - pos
 		}
 		createMatchedResult(pd, l)
-		pd.result.value = ""
+		pd.Result.Value = ""
 	} else {
 		createUnmatchedResult(pd, 0, "Expecting line comment", nil)
 	}
@@ -168,6 +168,7 @@ func (p *ParseRegexp) InPort(data interface{}) {
 
 	if match != nil {
 		createMatchedResult(pd, match[1])
+		pd.Result.Value = pd.Result.Text
 	} else {
 		createUnmatchedResult(pd, 0, "Expecting match for regexp `"+p.re.String()[1:]+"`", nil)
 	}
@@ -285,7 +286,7 @@ func (p *ParseNatural) InPort(data interface{}) {
 		val, err := strconv.ParseUint(substr[0:n], len(p.cfgDigits), 64)
 		if err == nil {
 			createMatchedResult(pd, n)
-			pd.result.value = val
+			pd.Result.Value = val
 		} else {
 			createUnmatchedResult(pd, 0, "Natural number expected", err)
 		}

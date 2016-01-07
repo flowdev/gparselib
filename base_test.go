@@ -63,47 +63,62 @@ func TestWhere(t *testing.T) {
 }
 
 func TestCreateUnmatchedResult(t *testing.T) {
-	src := &SourceData{name: "file1", content: "content\nline2\nline3\nand4\n",
-		pos: 15, wherePrevNl: 13, whereLine: 3}
-	pd := &ParseData{*src, nil, nil}
+	pd := NewParseData("file1", "content\nline2\nline3\nand4\n")
+	pd.source.pos = 15
+	pd.source.wherePrevNl = 13
+	pd.source.whereLine = 3
 
 	createUnmatchedResult(pd, 0, "Bust", nil)
 
 	Convey("Creating an unmatched result, ...", t, func() {
 		Convey(`... should create result with error position, empty text and no value.`, func() {
-			So(pd.result, ShouldNotBeNil)
-			So(pd.result.pos, ShouldEqual, 15)
-			So(pd.result.errPos, ShouldEqual, 15)
-			So(pd.result.text, ShouldBeEmpty)
-			So(pd.result.value, ShouldBeNil)
+			So(pd.Result, ShouldNotBeNil)
+			So(pd.Result.Pos, ShouldEqual, 15)
+			So(pd.Result.ErrPos, ShouldEqual, 15)
+			So(pd.Result.Text, ShouldBeEmpty)
+			So(pd.Result.Value, ShouldBeNil)
 		})
 
 		Convey(`... should give error feedback.`, func() {
-			So(pd.result.feedback.Errors, ShouldNotBeNil)
-			So(len(pd.result.feedback.Errors), ShouldEqual, 1)
-			So(pd.result.feedback.Errors[0].Error(), ShouldEndWith, "\nBust.")
+			So(pd.Result.Feedback.Errors, ShouldNotBeNil)
+			So(len(pd.Result.Feedback.Errors), ShouldEqual, 1)
+			So(pd.Result.Feedback.Errors[0].Error(), ShouldEndWith, "\nBust.")
 		})
 	})
 }
 
 func TestCreateMatchedResult(t *testing.T) {
-	src := &SourceData{name: "file1", content: "content\nline2\nline3\nand4\n",
-		pos: 15, wherePrevNl: 13, whereLine: 3}
-	pd := &ParseData{*src, nil, nil}
+	pd := NewParseData("file1", "content\nline2\nline3\nand4\n")
+	pd.source.pos = 15
+	pd.source.wherePrevNl = 13
+	pd.source.whereLine = 3
 
 	createMatchedResult(pd, 3)
 
 	Convey("Creating a matched result, ...", t, func() {
 		Convey(`... should create result with text, no error position and no value.`, func() {
-			So(pd.result, ShouldNotBeNil)
-			So(pd.result.pos, ShouldEqual, 15)
-			So(pd.result.errPos, ShouldEqual, -1)
-			So(pd.result.text, ShouldEqual, "ine")
-			So(pd.result.value, ShouldBeNil)
+			So(pd.Result, ShouldNotBeNil)
+			So(pd.Result.Pos, ShouldEqual, 15)
+			So(pd.Result.ErrPos, ShouldEqual, -1)
+			So(pd.Result.Text, ShouldEqual, "ine")
+			So(pd.Result.Value, ShouldBeNil)
 		})
 
 		Convey(`... should give no error feedback.`, func() {
-			So(pd.result.feedback.Errors, ShouldBeNil)
+			So(pd.Result.Feedback.Errors, ShouldBeNil)
 		})
+	})
+}
+
+func TestMin(t *testing.T) {
+	Convey("Testing min(a, b), ...", t, func() {
+		So(min(1, 2), ShouldEqual, 1)
+		So(min(2, 1), ShouldEqual, 1)
+	})
+}
+func TestMax(t *testing.T) {
+	Convey("Testing max(a, b), ...", t, func() {
+		So(max(1, 2), ShouldEqual, 2)
+		So(max(2, 1), ShouldEqual, 2)
 	})
 }
