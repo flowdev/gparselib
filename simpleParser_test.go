@@ -166,12 +166,22 @@ func runTest(t *testing.T, sp SimpleParseOp, pd *ParseData, er *ParseResult, new
 		Convey(`... should give the right result text.`, func() {
 			So(pd2.Result.Text, ShouldEqual, er.Text)
 		})
-		Convey(`... should give the right errors.`, func() {
+		Convey(`... should give the right number of errors.`, func() {
+			errs := pd2.Result.Feedback.Errors
 			if errCount <= 0 {
-				So(pd2.Result.Feedback.Errors, ShouldBeNil)
+				So(errs, ShouldBeNil)
 			} else {
-				So(len(pd2.Result.Feedback.Errors), ShouldEqual, errCount)
-				So(pd2.Result.Feedback.Errors[errCount-1].Error(), ShouldNotBeNil)
+				So(len(errs), ShouldEqual, errCount)
+			}
+		})
+		Convey(`... should give the right error text.`, func() {
+			errs := pd2.Result.Feedback.Errors
+			if errCount > 0 {
+				if len(errs) != errCount {
+					So(printErrors(errs), ShouldBeBlank)
+				} else {
+					So(errs[errCount-1].Error(), ShouldNotBeNil)
+				}
 			}
 		})
 	})
@@ -187,6 +197,16 @@ func valueTest(actual, expected interface{}) {
 			So(fmt.Sprintf("%#v", actual), ShouldEqual, fmt.Sprintf("%#v", expected))
 		})
 	}
+}
+func printErrors(errs []*ParseError) string {
+	result := ""
+	for _, err := range errs {
+		result += err.Error() + "\n"
+	}
+	if result == "" {
+		result = "<EMPTY>"
+	}
+	return result
 }
 
 type SemanticsTestOp struct {

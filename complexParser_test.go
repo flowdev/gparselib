@@ -103,10 +103,10 @@ func TestParseAll_NormalFunctionality(t *testing.T) {
 	p.AppendSubOutPort(plNo.InPort)
 	plNo.SetOutPort(p.SubInPort)
 
-	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 2)
-	runTest(t, p, newData("no match", 0, " flow no"), newResult(0, "", nil, 0), 0, 2)
-	runTest(t, p, newData("match flow", 0, "flowabc"), newResult(0, "", nil, 4), 0, 2)
-	runTest(t, p, newData("match no", 3, "123noabc"), newResult(3, "", nil, 3), 3, 2)
+	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
+	runTest(t, p, newData("no match", 0, " flow no"), newResult(0, "", nil, 0), 0, 1)
+	runTest(t, p, newData("match flow", 0, "flowabc"), newResult(0, "", nil, 4), 0, 1)
+	runTest(t, p, newData("match no", 3, "123noabc"), newResult(3, "", nil, 3), 3, 1)
 	runTest(t, p, newData("match all", 3, "123flownoabc"), newResult(3, "flowno", []interface{}{nil, nil}, -1), 9, 0)
 }
 func TestParseAll_ManySubs(t *testing.T) {

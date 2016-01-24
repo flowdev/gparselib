@@ -1,8 +1,8 @@
 package gparselib
 
 import (
+	"fmt"
 	"math"
-	"strconv"
 )
 
 // ------- Parse multiple subparsers with configurable min and max count:
@@ -53,8 +53,7 @@ func (p *ParseMulti) handleSubresult(data interface{}, pd *ParseData, tmp *tempD
 		} else {
 			subResult := pd.Result
 			pd.Result = nil
-			createUnmatchedResult(pd, relPos, "At least "+strconv.Itoa(p.min)+
-				" matches expected but got only "+strconv.Itoa(i), nil)
+			createUnmatchedResult(pd, relPos, fmt.Sprintf("At least %d matches expected but got only %d.", p.min, i), nil)
 			AddFeedback(&(pd.Result.Feedback), subResult.Feedback)
 		}
 		pd.SubResults = tmp.subResults
@@ -122,7 +121,7 @@ func NewParseMulti1(parseData func(interface{}) *ParseData,
 	return p
 }
 
-// ------- Parse multiple subparsers with lower bound 1 and without upper bound limit:
+// ------- Parse multiple subparsers without lower bound limit and with upper bound 1:
 type ParseOptional struct {
 	ParseMulti
 }
@@ -209,13 +208,9 @@ func (p *ParseAll) handleSubresultImpl(data interface{}, pd *ParseData, tmp *tem
 	case pd.Result.ErrPos < 0:
 		return pd.Result
 	default:
-		subResult := pd.Result
-		relPos := pd.Result.Pos - tmp.pos
+		// pd.Result is set by subparser!
+		pd.Result.Pos = tmp.pos // but we have to correct the position to the overall result position
 		pd.source.pos = tmp.pos
-		pd.Result = nil
-		createUnmatchedResult(pd, relPos, "All subparsers should match. But the "+strconv.Itoa(len(tmp.subResults)+1)+
-			". subparser failed", nil)
-		AddFeedback(&(pd.Result.Feedback), subResult.Feedback)
 		return nil
 	}
 }
@@ -257,8 +252,7 @@ func (p *ParseAny) handleSubresultImpl(data interface{}, pd *ParseData, tmp *tem
 		relPos := pd.Result.Pos - tmp.pos
 		pd.source.pos = tmp.pos
 		pd.Result = nil
-		createUnmatchedResult(pd, relPos, "Any subparser should match. But all "+strconv.Itoa(len(tmp.subResults)+1)+
-			" subparsers failed", nil)
+		createUnmatchedResult(pd, relPos, fmt.Sprintf("Any subparser should match. But all %d subparsers failed", len(tmp.subResults)), nil)
 		for _, subRes := range tmp.subResults {
 			AddFeedback(&(pd.Result.Feedback), subRes.Feedback)
 		}
