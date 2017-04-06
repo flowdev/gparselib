@@ -1,19 +1,20 @@
 package gparselib
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestWhere(t *testing.T) {
-	src := &SourceData{name: "file1", content: "content\nline2\nline3\nand4\n",
+	src := &SourceData{Name: "file1", content: "content\nline2\nline3\nand4\n",
 		pos: 15, wherePrevNl: 13, whereLine: 3}
 
 	Convey("Searching forward, ...", t, func() {
 		Convey(`... should find a position in the same line.`, func() {
 			where := where(src, 14)
 
-			So(where, ShouldContainSubstring, "File '"+src.name+"'")
+			So(where, ShouldContainSubstring, "File '"+src.Name+"'")
 			So(where, ShouldContainSubstring, "line 3")
 			So(where, ShouldContainSubstring, "column 1")
 			So(where, ShouldEndWith, "\nline3\n")
@@ -32,7 +33,7 @@ func TestWhere(t *testing.T) {
 		Convey(`... should find a position in the previous line.`, func() {
 			where := where(src, 13)
 
-			So(where, ShouldContainSubstring, "File '"+src.name+"'")
+			So(where, ShouldContainSubstring, "File '"+src.Name+"'")
 			So(where, ShouldContainSubstring, "line 2")
 			So(where, ShouldContainSubstring, "column 6")
 			So(where, ShouldEndWith, "\nline2\n")
@@ -48,13 +49,13 @@ func TestWhere(t *testing.T) {
 	})
 
 	Convey("Searching in empty content, ...", t, func() {
-		src := &SourceData{name: "empty", content: "",
+		src := &SourceData{Name: "empty", content: "",
 			pos: 0, wherePrevNl: -1, whereLine: 1}
 
 		Convey(`... should find start position.`, func() {
 			where := where(src, 0)
 
-			So(where, ShouldContainSubstring, "File '"+src.name+"'")
+			So(where, ShouldContainSubstring, "File '"+src.Name+"'")
 			So(where, ShouldContainSubstring, "line 1")
 			So(where, ShouldContainSubstring, "column 1")
 			So(where, ShouldEndWith, "\n")
@@ -64,9 +65,9 @@ func TestWhere(t *testing.T) {
 
 func TestCreateUnmatchedResult(t *testing.T) {
 	pd := NewParseData("file1", "content\nline2\nline3\nand4\n")
-	pd.source.pos = 15
-	pd.source.wherePrevNl = 13
-	pd.source.whereLine = 3
+	pd.Source.pos = 15
+	pd.Source.wherePrevNl = 13
+	pd.Source.whereLine = 3
 
 	createUnmatchedResult(pd, 0, "Bust", nil)
 
@@ -80,18 +81,18 @@ func TestCreateUnmatchedResult(t *testing.T) {
 		})
 
 		Convey(`... should give error feedback.`, func() {
-			So(pd.Result.Feedback.Errors, ShouldNotBeNil)
-			So(len(pd.Result.Feedback.Errors), ShouldEqual, 1)
-			So(pd.Result.Feedback.Errors[0].Error(), ShouldEndWith, "\nBust.")
+			So(pd.Result.HasError(), ShouldBeTrue)
+			So(len(pd.Result.Feedback), ShouldEqual, 1)
+			So(pd.Result.Feedback[0].String(), ShouldEndWith, "\nBust.")
 		})
 	})
 }
 
 func TestCreateMatchedResult(t *testing.T) {
 	pd := NewParseData("file1", "content\nline2\nline3\nand4\n")
-	pd.source.pos = 15
-	pd.source.wherePrevNl = 13
-	pd.source.whereLine = 3
+	pd.Source.pos = 15
+	pd.Source.wherePrevNl = 13
+	pd.Source.whereLine = 3
 
 	createMatchedResult(pd, 3)
 
@@ -105,7 +106,7 @@ func TestCreateMatchedResult(t *testing.T) {
 		})
 
 		Convey(`... should give no error feedback.`, func() {
-			So(pd.Result.Feedback.Errors, ShouldBeNil)
+			So(pd.Result.HasError(), ShouldBeFalse)
 		})
 	})
 }

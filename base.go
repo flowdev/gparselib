@@ -1,6 +1,7 @@
 package gparselib
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -8,10 +9,28 @@ import (
 //
 // ---- Data types:
 
-type Feedback struct {
-	Errors   []*ParseError
-	Warnings []string
-	Infos    []string
+const (
+	FeedbackInfo = iota
+	FeedbackWarning
+	FeedbackError
+)
+
+type FeedbackItem struct {
+	Kind int
+	Msg  fmt.Stringer
+}
+
+func (fi *FeedbackItem) String() string {
+	var msg string
+	switch fi.Kind {
+	case FeedbackInfo:
+		msg = "INFO: "
+	case FeedbackWarning:
+		msg = "WARNING: "
+	case FeedbackError:
+		msg = "ERROR: "
+	}
+	return msg + fi.Msg.String()
 }
 
 type ParseResult struct {
@@ -19,11 +38,20 @@ type ParseResult struct {
 	Text     string
 	Value    interface{}
 	ErrPos   int
-	Feedback Feedback
+	Feedback []*FeedbackItem
+}
+
+func (pr *ParseResult) HasError() bool {
+	for _, fb := range pr.Feedback {
+		if fb.Kind == FeedbackError {
+			return true
+		}
+	}
+	return false
 }
 
 type SourceData struct {
-	name        string
+	Name        string
 	content     string
 	pos         int
 	wherePrevNl int
@@ -44,7 +72,7 @@ func newTempData(pos, n int) *tempData {
 }
 
 type ParseData struct {
-	source     SourceData
+	Source     SourceData
 	Result     *ParseResult
 	SubResults []*ParseResult
 	tmp        []*tempData
@@ -61,16 +89,19 @@ type ParseError struct {
 }
 
 func NewParseError(pd *ParseData, pos int, msg string, baseErr error) *ParseError {
-	return &ParseError{where(&pd.source, pos), msg, baseErr}
+	return &ParseError{where(&pd.Source, pos), msg, baseErr}
 }
 func (e *ParseError) Error() string {
-	msg := "ERROR: " + e.where + e.myErr
+	msg := e.where + e.myErr
 	if e.baseErr != nil {
 		msg += ":\n" + e.baseErr.Error()
 	} else {
 		msg += "."
 	}
 	return msg
+}
+func (e *ParseError) String() string {
+	return e.Error()
 }
 
 // ------- Base for all parsers:
@@ -114,24 +145,19 @@ func (p *BaseParseOp) HandleSemantics(dat interface{}, pd *ParseData) {
 // ---- Utility functions:
 
 func createMatchedResult(pd *ParseData, n int) {
-	i := pd.source.pos
+	i := pd.Source.pos
 	n += i
-	pd.Result = &ParseResult{i, pd.source.content[i:n], nil, -1, Feedback{}}
-	pd.source.pos = n
+	pd.Result = &ParseResult{i, pd.Source.content[i:n], nil, -1, make([]*FeedbackItem, 0, 64)}
+	pd.Source.pos = n
 }
 func createUnmatchedResult(pd *ParseData, i int, msg string, baseErr error) {
-	i += pd.source.pos
-	pd.Result = &ParseResult{pd.source.pos, "", nil, i, Feedback{}}
+	i += pd.Source.pos
+	pd.Result = &ParseResult{pd.Source.pos, "", nil, i, make([]*FeedbackItem, 0, 64)}
 	AddError(i, msg, baseErr, pd)
 }
 
 func AddError(errPos int, msg string, baseErr error, pd *ParseData) {
-	pd.Result.Feedback.Errors = append(pd.Result.Feedback.Errors, NewParseError(pd, errPos, msg, baseErr))
-}
-func AddFeedback(baseF *Feedback, addF Feedback) {
-	baseF.Errors = append(baseF.Errors, addF.Errors...)
-	baseF.Warnings = append(baseF.Warnings, addF.Warnings...)
-	baseF.Infos = append(baseF.Infos, addF.Infos...)
+	pd.Result.Feedback = append(pd.Result.Feedback, &FeedbackItem{Kind: FeedbackError, Msg: NewParseError(pd, errPos, msg, baseErr)})
 }
 
 func where(src *SourceData, pos int) string {
@@ -186,7 +212,7 @@ func tryWhere(src *SourceData, prevNl int, pos int, nextNl int, lineNum int) (wh
 	if prevNl < pos && pos <= nextNl {
 		src.wherePrevNl = prevNl
 		src.whereLine = lineNum
-		return generateWhereMessage(src.name, lineNum, pos-prevNl, src.content[prevNl+1:nextNl]), true
+		return generateWhereMessage(src.Name, lineNum, pos-prevNl, src.content[prevNl+1:nextNl]), true
 	}
 	return "", false
 }

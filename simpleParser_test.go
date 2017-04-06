@@ -2,8 +2,9 @@ package gparselib
 
 import (
 	"fmt"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestParseLiteral(t *testing.T) {
@@ -140,7 +141,7 @@ func newResult(pos int, text string, value interface{}, errPos int) *ParseResult
 }
 func newData(srcName string, srcPos int, srcContent string) *ParseData {
 	pd := NewParseData(srcName, srcContent)
-	pd.source.pos = srcPos
+	pd.Source.pos = srcPos
 	return pd
 }
 
@@ -149,9 +150,9 @@ func runTest(t *testing.T, sp SimpleParseOp, pd *ParseData, er *ParseResult, new
 	sp.SetOutPort(func(data interface{}) { pd2 = data.(*ParseData) })
 	sp.InPort(pd)
 
-	Convey("Simple parsing '"+pd.source.name+"', ...", t, func() {
+	Convey("Simple parsing '"+pd.Source.Name+"', ...", t, func() {
 		Convey(`... should give the right source position.`, func() {
-			So(pd2.source.pos, ShouldEqual, newSrcPos)
+			So(pd2.Source.pos, ShouldEqual, newSrcPos)
 		})
 		Convey(`... should create a result.`, func() {
 			So(pd2.Result, ShouldNotBeNil)
@@ -167,20 +168,20 @@ func runTest(t *testing.T, sp SimpleParseOp, pd *ParseData, er *ParseResult, new
 			So(pd2.Result.Text, ShouldEqual, er.Text)
 		})
 		Convey(`... should give the right number of errors.`, func() {
-			errs := pd2.Result.Feedback.Errors
+			r := pd2.Result
 			if errCount <= 0 {
-				So(errs, ShouldBeNil)
+				So(r.HasError(), ShouldBeFalse)
 			} else {
-				So(len(errs), ShouldEqual, errCount)
+				So(len(r.Feedback), ShouldEqual, errCount)
 			}
 		})
 		Convey(`... should give the right error text.`, func() {
-			errs := pd2.Result.Feedback.Errors
+			fb := pd2.Result.Feedback
 			if errCount > 0 {
-				if len(errs) != errCount {
-					So(printErrors(errs), ShouldBeBlank)
+				if len(fb) != errCount {
+					So(printErrors(fb), ShouldBeBlank)
 				} else {
-					So(errs[errCount-1].Error(), ShouldNotBeNil)
+					So(fb[errCount-1].Msg.String(), ShouldNotBeBlank)
 				}
 			}
 		})
@@ -198,10 +199,12 @@ func valueTest(actual, expected interface{}) {
 		})
 	}
 }
-func printErrors(errs []*ParseError) string {
+func printErrors(fbs []*FeedbackItem) string {
 	result := ""
-	for _, err := range errs {
-		result += err.Error() + "\n"
+	for _, fb := range fbs {
+		if fb.Kind == FeedbackError {
+			result += fb.String() + "\n"
+		}
 	}
 	if result == "" {
 		result = "<EMPTY>"

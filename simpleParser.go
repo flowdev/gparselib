@@ -30,18 +30,18 @@ func (p *ParseBlockComment) ConfigPort(begin, end string) {
 }
 func (p *ParseBlockComment) InPort(data interface{}) {
 	pd := p.parseData(data)
-	pos := pd.source.pos
+	pos := pd.Source.pos
 	lBeg := len(p.begin)
 	lEnd := len(p.end)
-	n := min(pos+lBeg, len(pd.source.content))
-	substr := pd.source.content[pos:n]
+	n := min(pos+lBeg, len(pd.Source.content))
+	substr := pd.Source.content[pos:n]
 
 	if substr == p.begin {
 		afterBackslash := false
 		stringType := ' '
 		found := false
 		endRune, _ := utf8.DecodeRuneInString(p.end)
-		reststr := pd.source.content[n:]
+		reststr := pd.Source.content[n:]
 
 	RuneLoop:
 		for i, r := range reststr {
@@ -81,7 +81,7 @@ func (p *ParseBlockComment) InPort(data interface{}) {
 			pd.Result.Value = ""
 		} else {
 			createUnmatchedResult(pd, lBeg, "Block comment isn't closed properly", nil)
-			pd.source.pos += lBeg
+			pd.Source.pos += lBeg
 		}
 	} else {
 		createUnmatchedResult(pd, 0, "Expecting block comment", nil)
@@ -110,17 +110,17 @@ func (p *ParseLineComment) ConfigPort(start string) {
 }
 func (p *ParseLineComment) InPort(data interface{}) {
 	pd := p.parseData(data)
-	pos := pd.source.pos
+	pos := pd.Source.pos
 	l := len(p.start)
-	n := min(pos+l, len(pd.source.content))
-	substr := pd.source.content[pos:n]
+	n := min(pos+l, len(pd.Source.content))
+	substr := pd.Source.content[pos:n]
 
 	if substr == p.start {
-		i := strings.IndexRune(pd.source.content[n:], '\n')
+		i := strings.IndexRune(pd.Source.content[n:], '\n')
 		if i >= 0 {
 			l += i
 		} else {
-			l = len(pd.source.content) - pos
+			l = len(pd.Source.content) - pos
 		}
 		createMatchedResult(pd, l)
 		pd.Result.Value = ""
@@ -162,8 +162,8 @@ func (p *ParseRegexp) ConfigPort(s string) {
 }
 func (p *ParseRegexp) InPort(data interface{}) {
 	pd := p.parseData(data)
-	pos := pd.source.pos
-	substr := pd.source.content[pos:]
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
 	match := p.re.FindStringIndex(substr)
 
 	if match != nil {
@@ -197,8 +197,8 @@ func (p *ParseSpace) ConfigPort(eolOk bool) {
 func (p *ParseSpace) InPort(data interface{}) {
 	var n int
 	pd := p.parseData(data)
-	pos := pd.source.pos
-	substr := pd.source.content[pos:]
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
 
 	for i, char := range substr {
 		if unicode.IsSpace(char) && (p.eolOk || char != '\n') {
@@ -231,8 +231,8 @@ func NewParseEof(parseData func(interface{}) *ParseData,
 }
 func (p *ParseEof) InPort(data interface{}) {
 	pd := p.parseData(data)
-	pos := pd.source.pos
-	n := len(pd.source.content) - 1
+	pos := pd.Source.pos
+	n := len(pd.Source.content) - 1
 
 	if n > pos {
 		createUnmatchedResult(pd, 0, "Expecting end of input but got "+strconv.Itoa(n-pos)+
@@ -272,8 +272,8 @@ func (p *ParseNatural) ConfigPort(radix int) {
 func (p *ParseNatural) InPort(data interface{}) {
 	var n int
 	pd := p.parseData(data)
-	pos := pd.source.pos
-	substr := pd.source.content[pos:]
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
 
 	for i, digit := range substr {
 		if strings.IndexRune(p.cfgDigits, unicode.ToLower(digit)) >= 0 {
@@ -320,8 +320,8 @@ func (p *ParseLiteral) ConfigPort(literal string) {
 }
 func (p *ParseLiteral) InPort(data interface{}) {
 	pd := p.parseData(data)
-	pos := pd.source.pos
-	if len(pd.source.content) >= pos+p.cfgN && pd.source.content[pos:pos+p.cfgN] == p.cfgLiteral {
+	pos := pd.Source.pos
+	if len(pd.Source.content) >= pos+p.cfgN && pd.Source.content[pos:pos+p.cfgN] == p.cfgLiteral {
 		createMatchedResult(pd, p.cfgN)
 	} else {
 		createUnmatchedResult(pd, 0, "Literal '"+p.cfgLiteral+"' expected", nil)
