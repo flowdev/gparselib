@@ -1,6 +1,13 @@
 package gparselib
 
-/*
+import (
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
+
 // ------- Parse block comment:
 
 type ParseBlockComment struct {
@@ -288,35 +295,36 @@ func (p *ParseNatural) InPort(data interface{}) {
 	}
 	p.HandleSemantics(data, pd)
 }
-*/
 
 // ------- Parse a literal value:
 
-// ParseLiteral parses a literal value at the current position of the parser.
-// The configuration has to be the literal string we expect.
-func ParseLiteral(
-	outPort func(interface{}),
-	semOutPort func(interface{}),
-	getParseData func(interface{}) *ParseData,
+type ParseLiteral struct {
+	BaseParseOp
+	cfgLiteral string
+	cfgN       int
+}
+
+func NewParseLiteral(parseData func(interface{}) *ParseData,
 	setParseData func(interface{}, *ParseData) interface{},
-	cfgLiteral string,
-) (
-	inPort func(interface{}),
-	semInPort func(interface{}),
-	setSemOutPort func(func(interface{})),
-) {
-	cfgN := len(cfgLiteral)
-	setSemOutPort = func(sop func(interface{})) { semOutPort = sop }
-	semInPort = defaultSemInPort(outPort, getParseData)
-	inPort = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		if len(pd.Source.content) >= pos+cfgN && pd.Source.content[pos:pos+cfgN] == cfgLiteral {
-			createMatchedResult(pd, cfgN)
-		} else {
-			createUnmatchedResult(pd, 0, "Literal '"+cfgLiteral+"' expected", nil)
-		}
-		handleSemantics(outPort, semOutPort, setParseData, data, pd)
+	literal string) *ParseLiteral {
+
+	p := &ParseLiteral{}
+	p.parseData = parseData
+	p.setParseData = setParseData
+	p.ConfigPort(literal)
+	return p
+}
+func (p *ParseLiteral) ConfigPort(literal string) {
+	p.cfgLiteral = literal
+	p.cfgN = len(literal)
+}
+func (p *ParseLiteral) InPort(data interface{}) {
+	pd := p.parseData(data)
+	pos := pd.Source.pos
+	if len(pd.Source.content) >= pos+p.cfgN && pd.Source.content[pos:pos+p.cfgN] == p.cfgLiteral {
+		createMatchedResult(pd, p.cfgN)
+	} else {
+		createUnmatchedResult(pd, 0, "Literal '"+p.cfgLiteral+"' expected", nil)
 	}
-	return
+	p.HandleSemantics(data, pd)
 }

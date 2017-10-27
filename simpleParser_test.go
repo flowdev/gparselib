@@ -1,23 +1,78 @@
 package gparselib
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestParseLiteral(t *testing.T) {
-	p := NewParseLiteral(func(data interface{}) *ParseData { return data.(*ParseData) },
-		func(data interface{}, pd *ParseData) interface{} { return pd }, "func")
+// testParseOp is the interface of all parsers to be tested.
+type testParseOp func(outPort func(interface{})) (inPort func(interface{}))
 
-	runTest(t, p, newData("no match", 0, " func\n"), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("simple", 0, "func"), newResult(0, "func", nil, -1), 4, 0)
-	runTest(t, p, newData("simple 2", 0, "func 123"), newResult(0, "func", nil, -1), 4, 0)
-	runTest(t, p, newData("simple 3", 2, "12func345"), newResult(2, "func", nil, -1), 6, 0)
+func getParseDataForTest(data interface{}) *ParseData {
+	return data.(*ParseData)
 }
 
+func setParseDataForTest(data interface{}, pd *ParseData) interface{} {
+	return pd
+}
+
+type parseTestData struct {
+	givenParseData   *ParseData
+	expectedResult   *ParseResult
+	expectedSrcPos   int
+	expectedErrCount int
+}
+
+func TestParseLiteral(t *testing.T) {
+	p := func(outPort func(interface{})) (inPort func(interface{})) {
+		inPort, _, _ = ParseLiteral(
+			outPort,
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+			"func",
+		)
+		return
+	}
+
+	/*
+		runTest(t, p, newData("no match", 0, " func\n"), newResult(0, "", nil, 0), 0, 1)
+		runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
+		runTest(t, p, newData("simple", 0, "func"), newResult(0, "func", nil, -1), 4, 0)
+		runTest(t, p, newData("simple 2", 0, "func 123"), newResult(0, "func", nil, -1), 4, 0)
+		runTest(t, p, newData("simple 3", 2, "12func345"), newResult(2, "func", nil, -1), 6, 0)
+	*/
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("no match", 0, " func\n"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("simple", 0, "func"),
+			expectedResult:   newResult(0, "func", nil, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 2", 0, "func 123"),
+			expectedResult:   newResult(0, "func", nil, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 3", 2, "12func345"),
+			expectedResult:   newResult(2, "func", nil, -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		},
+	})
+}
+
+/*
 func TestParseNatural(t *testing.T) {
 	p := NewParseNatural(func(data interface{}) *ParseData { return data.(*ParseData) },
 		func(data interface{}, pd *ParseData) interface{} { return pd }, 10)
@@ -102,38 +157,57 @@ func TestParseLineComment(t *testing.T) {
 	runTest(t, p, newData("simple 4", 2, "12// 1\r\n345"), newResult(2, "// 1\r", "", -1), 7, 0)
 	runTest(t, p, newData("evil", 0, "//"), newResult(0, "//", "", -1), 2, 0)
 }
+*/
 
-func TestParseBlockComment(t *testing.T) {
-	p := NewParseBlockComment(func(data interface{}) *ParseData { return data.(*ParseData) },
-		func(data interface{}, pd *ParseData) interface{} { return pd }, "/*", "*/")
-
-	runTest(t, p, newData("no match", 0, " 123 "), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("simple", 0, "/* 123 */"), newResult(0, "/* 123 */", "", -1), 9, 0)
-	runTest(t, p, newData("simple 2", 4, "abcd/* 123 */"), newResult(4, "/* 123 */", "", -1), 13, 0)
-	runTest(t, p, newData("simple 3", 2, "ab/* 123 */cdefg"), newResult(2, "/* 123 */", "", -1), 11, 0)
-	runTest(t, p, newData("nested block comments aren't supported!!!", 2, "ab/* 1 /* 2 */ 3 */cdefg"),
-		newResult(2, "/* 1 /* 2 */", "", -1), 14, 0)
-	runTest(t, p, newData("comment not closed", 4, "abcd/* 123 "), newResult(4, "", nil, 6), 6, 1)
-	runTest(t, p, newData("comment in single qoute string", 0, `/* 1'2\'*/'3 */`),
-		newResult(0, `/* 1'2\'*/'3 */`, "", -1), 15, 0)
-	runTest(t, p, newData("comment in double qoute string", 0, `/* 1"2\"*/"3 */`),
-		newResult(0, `/* 1"2\"*/"3 */`, "", -1), 15, 0)
-	runTest(t, p, newData("comment in backqoute string", 0, "/* 1`2*/\\`*/`3 */"),
-		newResult(0, "/* 1`2*/\\`*/", "", -1), 12, 0)
-}
+//func TestParseBlockComment(t *testing.T) {
+//	p := NewParseBlockComment(func(data interface{}) *ParseData { return data.(*ParseData) },
+//		func(data interface{}, pd *ParseData) interface{} { return pd }, "/*", "*/")
+//
+//	runTest(t, p, newData("no match", 0, " 123 "), newResult(0, "", nil, 0), 0, 1)
+//	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
+//	runTest(t, p, newData("simple", 0, "/* 123 */"), newResult(0, "/* 123 */", "", -1), 9, 0)
+//	runTest(t, p, newData("simple 2", 4, "abcd/* 123 */"), newResult(4, "/* 123 */", "", -1), 13, 0)
+//	runTest(t, p, newData("simple 3", 2, "ab/* 123 */cdefg"), newResult(2, "/* 123 */", "", -1), 11, 0)
+//	runTest(t, p, newData("nested block comments aren't supported!!!", 2, "ab/* 1 /* 2 */ 3 */cdefg"),
+//		newResult(2, "/* 1 /* 2 */", "", -1), 14, 0)
+//	runTest(t, p, newData("comment not closed", 4, "abcd/* 123 "), newResult(4, "", nil, 6), 6, 1)
+//	runTest(t, p, newData("comment in single qoute string", 0, `/* 1'2\'*/'3 */`),
+//		newResult(0, `/* 1'2\'*/'3 */`, "", -1), 15, 0)
+//	runTest(t, p, newData("comment in double qoute string", 0, `/* 1"2\"*/"3 */`),
+//		newResult(0, `/* 1"2\"*/"3 */`, "", -1), 15, 0)
+//	runTest(t, p, newData("comment in backqoute string", 0, "/* 1`2*/\\`*/`3 */"),
+//		newResult(0, "/* 1`2*/\\`*/", "", -1), 12, 0)
+//}
 
 const semanticTestValue = "Semantic test!!!"
 
 func TestParseSemantics(t *testing.T) {
-	p := NewParseLiteral(func(data interface{}) *ParseData { return data.(*ParseData) },
-		func(data interface{}, pd *ParseData) interface{} { return pd }, "func")
-	s := &SemanticsTestOp{}
-	p.SetSemOutPort(s.InPort)
-	s.SetOutPort(p.SemInPort)
+	p := func(outPort func(interface{})) (inPort func(interface{})) {
+		pInPort, pSemInPort, pSetSemOutPort := ParseLiteral(
+			outPort,
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+			"func",
+		)
+		semInPort := SemanticsTestOp(pSemInPort)
+		pSetSemOutPort(semInPort)
+		return pInPort
+	}
 
-	runTest(t, p, newData("no match", 0, " func\n"), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("simple", 0, "func"), newResult(0, "func", semanticTestValue, -1), 4, 0)
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("no match", 0, " func\n"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("simple", 0, "func"),
+			expectedResult:   newResult(0, "func", semanticTestValue, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		},
+	})
 }
 
 func newResult(pos int, text string, value interface{}, errPos int) *ParseResult {
@@ -145,58 +219,49 @@ func newData(srcName string, srcPos int, srcContent string) *ParseData {
 	return pd
 }
 
-func runTest(t *testing.T, sp SimpleParseOp, pd *ParseData, er *ParseResult, newSrcPos int, errCount int) {
+func runTests(t *testing.T, sp testParseOp, specs []parseTestData) {
 	var pd2 *ParseData
-	sp.SetOutPort(func(data interface{}) { pd2 = data.(*ParseData) })
-	sp.InPort(pd)
+	inPort := sp(func(data interface{}) { pd2 = data.(*ParseData) })
+	for _, spec := range specs {
+		t.Logf("Parsing source '%s'.", spec.givenParseData.Source.Name)
+		inPort(spec.givenParseData)
 
-	Convey("Simple parsing '"+pd.Source.Name+"', ...", t, func() {
-		Convey(`... should give the right source position.`, func() {
-			So(pd2.Source.pos, ShouldEqual, newSrcPos)
-		})
-		Convey(`... should create a result.`, func() {
-			So(pd2.Result, ShouldNotBeNil)
-		})
-		valueTest(pd2.Result.Value, er.Value)
-		Convey(`... should give the right error position.`, func() {
-			So(pd2.Result.ErrPos, ShouldEqual, er.ErrPos)
-		})
-		Convey(`... should give the right result position.`, func() {
-			So(pd2.Result.Pos, ShouldEqual, er.Pos)
-		})
-		Convey(`... should give the right result text.`, func() {
-			So(pd2.Result.Text, ShouldEqual, er.Text)
-		})
-		Convey(`... should give the right number of errors.`, func() {
-			r := pd2.Result
-			if errCount <= 0 {
-				So(r.HasError(), ShouldBeFalse)
-			} else {
-				So(len(r.Feedback), ShouldEqual, errCount)
-			}
-		})
-		Convey(`... should give the right error text.`, func() {
-			fb := pd2.Result.Feedback
-			if errCount > 0 {
-				if len(fb) != errCount {
-					So(printErrors(fb), ShouldBeBlank)
-				} else {
-					So(fb[errCount-1].Msg.String(), ShouldNotBeBlank)
-				}
-			}
-		})
-	})
-}
-func valueTest(actual, expected interface{}) {
-	if expected == nil {
-		Convey(`... should create no value.`, func() {
-			So(actual, ShouldBeNil)
-		})
-	} else {
-		Convey(`... should create the right value.`, func() {
-			So(fmt.Sprintf("%T", actual), ShouldEqual, fmt.Sprintf("%T", expected))
-			So(fmt.Sprintf("%#v", actual), ShouldEqual, fmt.Sprintf("%#v", expected))
-		})
+		if pd2.Source.pos != spec.expectedSrcPos {
+			t.Errorf("Expected source position %d, got %d.", spec.expectedSrcPos, pd2.Source.pos)
+		}
+		if pd2.Result == nil {
+			t.Fatalf("Expected a result.")
+		}
+		if pd2.Result.Pos != spec.expectedResult.Pos {
+			t.Errorf("Expected result position %d, got %d.", spec.expectedResult.Pos, pd2.Result.Pos)
+		}
+		if pd2.Result.Text != spec.expectedResult.Text {
+			t.Errorf("Expected result text '%s', got '%s'.", spec.expectedResult.Text, pd2.Result.Text)
+		}
+		if spec.expectedResult.Value == nil && pd2.Result.Value != nil {
+			t.Errorf("Didn't expect a value but got '%#v'.", pd2.Result.Value)
+		}
+		if spec.expectedResult.Value != nil && !reflect.DeepEqual(pd2.Result.Value, spec.expectedResult.Value) {
+			t.Logf("The acutal value isn't equal to the expected one:")
+			t.Errorf("Expected value of type '%T', got '%T'.", spec.expectedResult.Value, pd2.Result.Value)
+			t.Errorf("Expected value '%#v', got '%#v'.", spec.expectedResult.Value, pd2.Result.Value)
+		}
+
+		if pd2.Result.ErrPos != spec.expectedResult.ErrPos {
+			t.Errorf("Expected result error position %d, got %d.", spec.expectedResult.ErrPos, pd2.Result.ErrPos)
+		}
+		if pd2.Result.HasError() && spec.expectedErrCount <= 0 {
+			t.Logf("Actual errors are: %s", printErrors(pd2.Result.Feedback))
+			t.Fatalf("Expected no error but found at least one.")
+		}
+		if len(pd2.Result.Feedback) != spec.expectedErrCount {
+			t.Logf("Actual errors are: %s", printErrors(pd2.Result.Feedback))
+			t.Fatalf("Expected %d errors, got %d.", spec.expectedErrCount, len(pd2.Result.Feedback))
+		}
+		if spec.expectedErrCount > 0 && pd2.Result.Feedback[spec.expectedErrCount-1].Msg.String() == "" {
+			t.Logf("Actual errors are: %s", printErrors(pd2.Result.Feedback))
+			t.Errorf("Expected an error message.")
+		}
 	}
 }
 func printErrors(fbs []*FeedbackItem) string {
@@ -212,15 +277,11 @@ func printErrors(fbs []*FeedbackItem) string {
 	return result
 }
 
-type SemanticsTestOp struct {
-	outPort func(interface{})
-}
-
-func (s *SemanticsTestOp) InPort(data interface{}) {
-	p := data.(*ParseData)
-	p.Result.Value = semanticTestValue
-	s.outPort(p)
-}
-func (p *SemanticsTestOp) SetOutPort(outPort func(interface{})) {
-	p.outPort = outPort
+func SemanticsTestOp(outPort func(interface{})) (inPort func(interface{})) {
+	inPort = func(data interface{}) {
+		p := data.(*ParseData)
+		p.Result.Value = semanticTestValue
+		outPort(p)
+	}
+	return
 }

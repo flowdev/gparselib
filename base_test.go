@@ -118,8 +118,21 @@ func TestMin(t *testing.T) {
 	})
 }
 func TestMax(t *testing.T) {
-	Convey("Testing max(a, b), ...", t, func() {
-		So(max(1, 2), ShouldEqual, 2)
-		So(max(2, 1), ShouldEqual, 2)
-	})
+	specs := []struct {
+		givenA      int
+		givenB      int
+		expectedMax int
+	}{
+		{givenA: 1, givenB: 2, expectedMax: 2},
+		{givenA: 2, givenB: 1, expectedMax: 2},
+	}
+	for _, spec := range specs {
+		// when:
+		result := max(spec.givenA, spec.givenB)
+
+		// then:
+		if result != spec.expectedMax {
+			t.Errorf("max(%d, %d) != %d", spec.givenA, spec.givenB, spec.expectedMax)
+		}
+	}
 }

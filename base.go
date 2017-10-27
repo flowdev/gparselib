@@ -9,14 +9,19 @@ import (
 //
 // ---- Data types:
 
+// FeedbackKind is just an enumeration of kinds of feedback.
+type FeedbackKind int
+
+// Enumeration of the kinds of feedback we can handle.
 const (
-	FeedbackInfo = iota
+	FeedbackInfo = FeedbackKind(iota)
 	FeedbackWarning
 	FeedbackError
 )
 
+// FeedbackItem is just one item of feedback.
 type FeedbackItem struct {
-	Kind int
+	Kind FeedbackKind
 	Msg  fmt.Stringer
 }
 
@@ -33,6 +38,7 @@ func (fi *FeedbackItem) String() string {
 	return msg + fi.Msg.String()
 }
 
+// ParseResult contains the result of parsing including semantic value and feedback.
 type ParseResult struct {
 	Pos      int
 	Text     string
@@ -41,6 +47,7 @@ type ParseResult struct {
 	Feedback []*FeedbackItem
 }
 
+// HasError searches the feedback for errors and returns only true if it found one.
 func (pr *ParseResult) HasError() bool {
 	for _, fb := range pr.Feedback {
 		if fb.Kind == FeedbackError {
@@ -50,6 +57,7 @@ func (pr *ParseResult) HasError() bool {
 	return false
 }
 
+// SourceData contains the name of the source for parsing, its contents and unexported stuff.
 type SourceData struct {
 	Name        string
 	content     string
@@ -58,6 +66,7 @@ type SourceData struct {
 	whereLine   int
 }
 
+// NewSourceData creates a new, completely initialized SourceData.
 func NewSourceData(name string, content string) SourceData {
 	return SourceData{name, content, 0, -1, 1}
 }
@@ -71,6 +80,7 @@ func newTempData(pos, n int) *tempData {
 	return &tempData{pos, make([]*ParseResult, 0, n)}
 }
 
+// ParseData contains all data needed during parsing.
 type ParseData struct {
 	Source     SourceData
 	Result     *ParseResult
@@ -78,16 +88,19 @@ type ParseData struct {
 	tmp        []*tempData
 }
 
+// NewParseData creates a new, completely initialized ParseData.
 func NewParseData(name string, content string) *ParseData {
 	return &ParseData{NewSourceData(name, content), nil, nil, make([]*tempData, 0, 128)}
 }
 
+// ParseError holds information about a parser error.
 type ParseError struct {
 	where   string
 	myErr   string
 	baseErr error
 }
 
+// NewParseError creates a new, completely initialized ParseError.
 func NewParseError(pd *ParseData, pos int, msg string, baseErr error) *ParseError {
 	return &ParseError{where(&pd.Source, pos), msg, baseErr}
 }
@@ -106,13 +119,39 @@ func (e *ParseError) String() string {
 
 // ------- Base for all parsers:
 
-type SimpleParseOp interface {
-	InPort(interface{})
-	SetOutPort(func(interface{}))
-	SemInPort(interface{})
-	SetSemOutPort(func(interface{}))
+// GetParseData is the interface for getting ParseData from generic data.
+type GetParseData func(interface{}) *ParseData
+
+// SetParseData is the interface for setting ParseData to generic data.
+type SetParseData func(interface{}, *ParseData) interface{}
+
+func defaultSemInPort(
+	outPort func(interface{}),
+	getParseData GetParseData,
+) func(interface{}) {
+	return func(dat interface{}) {
+		pd := getParseData(dat)
+		pd.SubResults = nil
+		outPort(dat)
+	}
 }
 
+func handleSemantics(
+	outPort func(interface{}),
+	semOutPort func(interface{}),
+	setParseData SetParseData,
+	dat interface{},
+	pd *ParseData,
+) {
+	if semOutPort != nil && pd.Result.ErrPos < 0 {
+		semOutPort(setParseData(dat, pd))
+	} else {
+		pd.SubResults = nil
+		outPort(setParseData(dat, pd))
+	}
+}
+
+/*
 type BaseParseOp struct {
 	parseData    func(interface{}) *ParseData
 	setParseData func(interface{}, *ParseData) interface{}
@@ -140,6 +179,7 @@ func (p *BaseParseOp) HandleSemantics(dat interface{}, pd *ParseData) {
 		p.outPort(p.setParseData(dat, pd))
 	}
 }
+*/
 
 //
 // ---- Utility functions:
@@ -156,6 +196,7 @@ func createUnmatchedResult(pd *ParseData, i int, msg string, baseErr error) {
 	AddError(i, msg, baseErr, pd)
 }
 
+// AddError adds an error feedback to the result part of the given ParseData.
 func AddError(errPos int, msg string, baseErr error, pd *ParseData) {
 	pd.Result.Feedback = append(pd.Result.Feedback, &FeedbackItem{Kind: FeedbackError, Msg: NewParseError(pd, errPos, msg, baseErr)})
 }
