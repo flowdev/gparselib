@@ -111,28 +111,22 @@ func TestCreateMatchedResult(t *testing.T) {
 	})
 }
 
-func TestMin(t *testing.T) {
-	Convey("Testing min(a, b), ...", t, func() {
-		So(min(1, 2), ShouldEqual, 1)
-		So(min(2, 1), ShouldEqual, 1)
-	})
-}
-func TestMax(t *testing.T) {
+func TestMinMax(t *testing.T) {
 	specs := []struct {
-		givenA      int
-		givenB      int
-		expectedMax int
+		givenA         int
+		givenB         int
+		expectedResult int
+		actualResult   int
+		name           string
 	}{
-		{givenA: 1, givenB: 2, expectedMax: 2},
-		{givenA: 2, givenB: 1, expectedMax: 2},
+		{givenA: 1, givenB: 2, expectedResult: 2, actualResult: max(1, 2), name: "max"},
+		{givenA: 2, givenB: 1, expectedResult: 2, actualResult: max(2, 1), name: "max"},
+		{givenA: 1, givenB: 2, expectedResult: 1, actualResult: min(1, 2), name: "min"},
+		{givenA: 2, givenB: 1, expectedResult: 1, actualResult: min(2, 1), name: "min"},
 	}
 	for _, spec := range specs {
-		// when:
-		result := max(spec.givenA, spec.givenB)
-
-		// then:
-		if result != spec.expectedMax {
-			t.Errorf("max(%d, %d) != %d", spec.givenA, spec.givenB, spec.expectedMax)
+		if spec.actualResult != spec.expectedResult {
+			t.Errorf("%s(%d, %d) != %d", spec.name, spec.givenA, spec.givenB, spec.expectedResult)
 		}
 	}
 }
