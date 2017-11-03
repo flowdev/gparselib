@@ -1,5 +1,12 @@
 package gparselib
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+)
+
 /*
 // ------- Parse block comment:
 
@@ -207,108 +214,107 @@ func (p *ParseSpace) InPort(data interface{}) {
 	}
 	p.HandleSemantics(data, pd)
 }
+*/
 
-// ------- Parse EOF:
+// ParseEOF only matches at the end of the input.
+func ParseEOF(
+	out func(interface{}),
+	semOut func(interface{}),
+	getParseData func(interface{}) *ParseData,
+	setParseData func(interface{}, *ParseData) interface{},
+) (
+	in func(interface{}),
+	semIn func(interface{}),
+	setSemOut func(func(interface{})),
+) {
+	in = func(data interface{}) {
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		n := len(pd.Source.content) - 1
 
-type ParseEof struct {
-	BaseParseOp
-}
-
-func NewParseEof(parseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{}) *ParseEof {
-
-	p := &ParseEof{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	return p
-}
-func (p *ParseEof) InPort(data interface{}) {
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	n := len(pd.Source.content) - 1
-
-	if n > pos {
-		createUnmatchedResult(pd, 0, "Expecting end of input but got "+strconv.Itoa(n-pos)+
-			" characters of input left", nil)
-	} else {
-		createMatchedResult(pd, 0)
+		if n > pos {
+			createUnmatchedResult(pd, 0,
+				fmt.Sprintf(
+					"Expecting end of input but got %d characters of input left",
+					n-pos,
+				),
+				nil,
+			)
+		} else {
+			createMatchedResult(pd, 0)
+		}
+		handleSemantics(out, semOut, setParseData, data, pd)
 	}
-	p.HandleSemantics(data, pd)
+	return
 }
-
-// ------- Parse a natural number:
 
 const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
 
-type ParseNatural struct {
-	BaseParseOp
-	cfgDigits string
-}
-
-func NewParseNatural(parseData func(interface{}) *ParseData,
+// ParseNatural parses a natural number at the current position of the parser.
+// The configuration has to be the radix of accepted numbers (e.g.: 10).
+func ParseNatural(
+	out func(interface{}),
+	semOut func(interface{}),
+	getParseData func(interface{}) *ParseData,
 	setParseData func(interface{}, *ParseData) interface{},
-	radix int) *ParseNatural {
-
-	p := &ParseNatural{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	p.ConfigPort(radix)
-	return p
-}
-func (p *ParseNatural) ConfigPort(radix int) {
-	// panic if radix < 2 or radix > 36 !!!
-	if radix < 2 || radix > 36 {
-		panic(&ParseError{"", "The given radix of '" + strconv.Itoa(radix) + "' is out of the allowed range from 2 to 36.", nil})
+	cfgRadix int,
+) (
+	in func(interface{}),
+	semIn func(interface{}),
+	setSemOut func(func(interface{})),
+) {
+	// panic if cfgRadix < 2 or cfgRadix > 36 !!!
+	if cfgRadix < 2 || cfgRadix > 36 {
+		panic(&ParseError{"", fmt.Sprintf("The given radix of '%d' is out of the allowed range from 2 to 36.", cfgRadix), nil})
 	}
-	p.cfgDigits = allDigits[0:radix]
-}
-func (p *ParseNatural) InPort(data interface{}) {
-	var n int
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	substr := pd.Source.content[pos:]
+	cfgDigits := allDigits[:cfgRadix]
 
-	for i, digit := range substr {
-		if strings.IndexRune(p.cfgDigits, unicode.ToLower(digit)) >= 0 {
-			n = i + 1
-		} else {
-			break
+	in = func(data interface{}) {
+		var n int
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		substr := pd.Source.content[pos:]
+
+		for i, digit := range substr {
+			if strings.IndexRune(cfgDigits, unicode.ToLower(digit)) >= 0 {
+				n = i + 1
+			} else {
+				break
+			}
 		}
-	}
-	if n > 0 {
-		val, err := strconv.ParseUint(substr[0:n], len(p.cfgDigits), 64)
-		if err == nil {
-			createMatchedResult(pd, n)
-			pd.Result.Value = val
+		if n > 0 {
+			val, err := strconv.ParseUint(substr[:n], len(cfgDigits), 64)
+			if err == nil {
+				createMatchedResult(pd, n)
+				pd.Result.Value = val
+			} else {
+				createUnmatchedResult(pd, 0, "Natural number expected", err)
+			}
 		} else {
-			createUnmatchedResult(pd, 0, "Natural number expected", err)
+			createUnmatchedResult(pd, 0, "Natural number expected", nil)
 		}
-	} else {
-		createUnmatchedResult(pd, 0, "Natural number expected", nil)
+		handleSemantics(out, semOut, setParseData, data, pd)
 	}
-	p.HandleSemantics(data, pd)
+	return
 }
-*/
-
-// ------- Parse a literal value:
 
 // ParseLiteral parses a literal value at the current position of the parser.
 // The configuration has to be the literal string we expect.
 func ParseLiteral(
-	outPort func(interface{}),
-	semOutPort func(interface{}),
+	out func(interface{}),
+	semOut func(interface{}),
 	getParseData func(interface{}) *ParseData,
 	setParseData func(interface{}, *ParseData) interface{},
 	cfgLiteral string,
 ) (
-	inPort func(interface{}),
-	semInPort func(interface{}),
-	setSemOutPort func(func(interface{})),
+	in func(interface{}),
+	semIn func(interface{}),
+	setSemOut func(func(interface{})),
 ) {
 	cfgN := len(cfgLiteral)
-	setSemOutPort = func(sop func(interface{})) { semOutPort = sop }
-	semInPort = defaultSemInPort(outPort, getParseData)
-	inPort = func(data interface{}) {
+	setSemOut = func(sop func(interface{})) { semOut = sop }
+	semIn = defaultSemInPort(out, getParseData)
+	in = func(data interface{}) {
 		pd := getParseData(data)
 		pos := pd.Source.pos
 		if len(pd.Source.content) >= pos+cfgN && pd.Source.content[pos:pos+cfgN] == cfgLiteral {
@@ -316,7 +322,7 @@ func ParseLiteral(
 		} else {
 			createUnmatchedResult(pd, 0, "Literal '"+cfgLiteral+"' expected", nil)
 		}
-		handleSemantics(outPort, semOutPort, setParseData, data, pd)
+		handleSemantics(out, semOut, setParseData, data, pd)
 	}
 	return
 }

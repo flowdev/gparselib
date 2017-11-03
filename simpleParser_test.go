@@ -24,9 +24,9 @@ type parseTestData struct {
 }
 
 func TestParseLiteral(t *testing.T) {
-	p := func(outPort func(interface{})) (inPort func(interface{})) {
-		inPort, _, _ = ParseLiteral(
-			outPort,
+	p := func(out func(interface{})) (in func(interface{})) {
+		in, _, _ = ParseLiteral(
+			out,
 			nil,
 			getParseDataForTest,
 			setParseDataForTest,
@@ -35,13 +35,6 @@ func TestParseLiteral(t *testing.T) {
 		return
 	}
 
-	/*
-		runTest(t, p, newData("no match", 0, " func\n"), newResult(0, "", nil, 0), 0, 1)
-		runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
-		runTest(t, p, newData("simple", 0, "func"), newResult(0, "func", nil, -1), 4, 0)
-		runTest(t, p, newData("simple 2", 0, "func 123"), newResult(0, "func", nil, -1), 4, 0)
-		runTest(t, p, newData("simple 3", 2, "12func345"), newResult(2, "func", nil, -1), 6, 0)
-	*/
 	runTests(t, p, []parseTestData{
 		{
 			givenParseData:   newData("no match", 0, " func\n"),
@@ -72,36 +65,92 @@ func TestParseLiteral(t *testing.T) {
 	})
 }
 
-/*
 func TestParseNatural(t *testing.T) {
-	p := NewParseNatural(func(data interface{}) *ParseData { return data.(*ParseData) },
-		func(data interface{}, pd *ParseData) interface{} { return pd }, 10)
+	p := func(out func(interface{})) (in func(interface{})) {
+		in, _, _ = ParseNatural(
+			out,
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+			10,
+		)
+		return
+	}
 
-	runTest(t, p, newData("no match", 0, "baaa"), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("simple", 0, "3"), newResult(0, "3", uint64(3), -1), 1, 0)
-	runTest(t, p, newData("simple 2", 0, "123"), newResult(0, "123", uint64(123), -1), 3, 0)
-	runTest(t, p, newData("simple 3", 2, "ab123c456"), newResult(2, "123", uint64(123), -1), 5, 0)
-	runTest(t, p, newData("error", 2, "ab1234567890123456789012345678901234567890"), newResult(2, "", nil, 2), 2, 1)
-
-	Convey("Parse natural with illegal radix, ...", t, func() {
-		So(func() {
-			NewParseNatural(func(data interface{}) *ParseData { return data.(*ParseData) },
-				func(data interface{}, pd *ParseData) interface{} { return pd }, 1)
-		}, ShouldPanic)
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("simple", 0, "3"),
+			expectedResult:   newResult(0, "3", uint64(3), -1),
+			expectedSrcPos:   1,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 2", 0, "123"),
+			expectedResult:   newResult(0, "123", uint64(123), -1),
+			expectedSrcPos:   3,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 3", 2, "ab123c456"),
+			expectedResult:   newResult(2, "123", uint64(123), -1),
+			expectedSrcPos:   5,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("error", 2, "ab1234567890123456789012345678901234567890"),
+			expectedResult:   newResult(2, "", nil, 2),
+			expectedSrcPos:   2,
+			expectedErrCount: 1,
+		},
 	})
 }
 
-func TestParseEof(t *testing.T) {
-	p := NewParseEof(func(data interface{}) *ParseData { return data.(*ParseData) },
-		func(data interface{}, pd *ParseData) interface{} { return pd })
+func TestParseEOF(t *testing.T) {
+	p := func(out func(interface{})) (in func(interface{})) {
+		in, _, _ = ParseEOF(
+			out,
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
 
-	runTest(t, p, newData("no match", 2, "12flow345"), newResult(2, "", nil, 2), 2, 1)
-	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, -1), 0, 0)
-	runTest(t, p, newData("simple", 4, "flow"), newResult(4, "", nil, -1), 4, 0)
-	runTest(t, p, newData("simple 2", 8, "flow 123"), newResult(8, "", nil, -1), 8, 0)
+	/*
+		runTest(t, p, newData("no match", 2, "12flow345"), newResult(2, "", nil, 2), 2, 1)
+		runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, -1), 0, 0)
+		runTest(t, p, newData("simple", 4, "flow"), newResult(4, "", nil, -1), 4, 0)
+		runTest(t, p, newData("simple 2", 8, "flow 123"), newResult(8, "", nil, -1), 8, 0)
+	*/
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("no match", 2, "12flow345"),
+			expectedResult:   newResult(2, "", nil, 2),
+			expectedSrcPos:   2,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, -1),
+			expectedSrcPos:   0,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple", 4, "flow"),
+			expectedResult:   newResult(4, "", nil, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 2", 8, "flow 123"),
+			expectedResult:   newResult(8, "", nil, -1),
+			expectedSrcPos:   8,
+			expectedErrCount: 0,
+		},
+	})
+
 }
 
+/*
 func TestParseSpace(t *testing.T) {
 	pEolOk := NewParseSpace(func(data interface{}) *ParseData { return data.(*ParseData) },
 		func(data interface{}, pd *ParseData) interface{} { return pd }, true)
@@ -120,6 +169,7 @@ func TestParseSpace(t *testing.T) {
 	runTest(t, pNotOk, newData("simple 3 excl. EOL", 2, "12 \t\r\n 3456"), newResult(2, " \t\r", nil, -1), 5, 0)
 }
 
+/*
 func TestParseRegexp(t *testing.T) {
 	pWv := NewParseRegexp(func(data interface{}) *ParseData { return data.(*ParseData) },
 		func(data interface{}, pd *ParseData) interface{} { return pd }, `^[a]+`)
