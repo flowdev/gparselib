@@ -125,15 +125,14 @@ type GetParseData func(interface{}) *ParseData
 // SetParseData is the interface for setting ParseData to generic data.
 type SetParseData func(interface{}, *ParseData) interface{}
 
-func defaultSemInPort(
-	outPort func(interface{}),
-	getParseData GetParseData,
-) func(interface{}) {
-	return func(dat interface{}) {
-		pd := getParseData(dat)
-		pd.SubResults = nil
-		outPort(dat)
+// SemanticsOp is a simple filter for whatever data the client likes to use.
+type SemanticsOp func(portOut func(interface{})) (portIn func(interface{}))
+
+func makeSemanticsPort(semOp SemanticsOp, portOut func(interface{})) func(interface{}) {
+	if semOp == nil {
+		return nil
 	}
+	return semOp(portOut)
 }
 
 func handleSemantics(
@@ -150,36 +149,6 @@ func handleSemantics(
 		outPort(setParseData(dat, pd))
 	}
 }
-
-/*
-type BaseParseOp struct {
-	parseData    func(interface{}) *ParseData
-	setParseData func(interface{}, *ParseData) interface{}
-	outPort      func(interface{})
-	errorPort    func(error)
-	semOutPort   func(interface{})
-}
-
-func (p *BaseParseOp) SemInPort(dat interface{}) {
-	pd := p.parseData(dat)
-	pd.SubResults = nil
-	p.outPort(dat)
-}
-func (p *BaseParseOp) SetOutPort(outPort func(interface{})) {
-	p.outPort = outPort
-}
-func (p *BaseParseOp) SetSemOutPort(semOutPort func(interface{})) {
-	p.semOutPort = semOutPort
-}
-func (p *BaseParseOp) HandleSemantics(dat interface{}, pd *ParseData) {
-	if p.semOutPort != nil && pd.Result.ErrPos < 0 {
-		p.semOutPort(p.setParseData(dat, pd))
-	} else {
-		pd.SubResults = nil
-		p.outPort(p.setParseData(dat, pd))
-	}
-}
-*/
 
 //
 // ---- Utility functions:

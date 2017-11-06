@@ -2,12 +2,245 @@ package gparselib
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
+// ParseLiteral parses a literal value at the current position of the parser.
+// The configuration has to be the literal string we expect.
+func ParseLiteral(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData GetParseData,
+	setParseData SetParseData,
+	cfgLiteral string,
+) (
+	portIn func(interface{}),
+) {
+	cfgN := len(cfgLiteral)
+
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		if len(pd.Source.content) >= pos+cfgN && pd.Source.content[pos:pos+cfgN] == cfgLiteral {
+			createMatchedResult(pd, cfgN)
+		} else {
+			createUnmatchedResult(pd, 0, "Literal '"+cfgLiteral+"' expected", nil)
+		}
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	}
+	return
+}
+
+// This is needed for: ParseNatural
+const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+// ParseNatural parses a natural number at the current position of the parser.
+// The configuration has to be the radix of accepted numbers (e.g.: 10).
+func ParseNatural(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData GetParseData,
+	setParseData SetParseData,
+	cfgRadix int,
+) (
+	portIn func(interface{}),
+	err error,
+) {
+	if cfgRadix < 2 || cfgRadix > 36 {
+		return nil,
+			&ParseError{
+				where: "",
+				myErr: fmt.Sprintf(
+					"The radix has to be between 2 and 36, but is: %d",
+					cfgRadix,
+				),
+				baseErr: nil,
+			}
+	}
+	cfgDigits := allDigits[:cfgRadix]
+
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		var n int
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		substr := pd.Source.content[pos:]
+
+		for i, digit := range substr {
+			if strings.IndexRune(cfgDigits, unicode.ToLower(digit)) >= 0 {
+				n = i + 1
+			} else {
+				break
+			}
+		}
+		if n > 0 {
+			val, err := strconv.ParseUint(substr[:n], len(cfgDigits), 64)
+			if err == nil {
+				createMatchedResult(pd, n)
+				pd.Result.Value = val
+			} else {
+				createUnmatchedResult(pd, 0, "Natural number expected", err)
+			}
+		} else {
+			createUnmatchedResult(pd, 0, "Natural number expected", nil)
+		}
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	}
+	return
+}
+
+// ParseEOF only matches at the end of the input.
+func ParseEOF(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData GetParseData,
+	setParseData SetParseData,
+) (
+	portIn func(interface{}),
+) {
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		n := len(pd.Source.content) - 1
+
+		if n > pos {
+			createUnmatchedResult(pd, 0,
+				fmt.Sprintf(
+					"Expecting end of input but got %d characters of input left",
+					n-pos,
+				),
+				nil,
+			)
+		} else {
+			createMatchedResult(pd, 0)
+		}
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	}
+	return
+}
+
+// ParseSpace parses one or more space characters.
+// Space is defined by unicode.IsSpace().
+// It can be configured wether EOL ('\n') is to be interpreted as space or not.
+func ParseSpace(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData GetParseData,
+	setParseData SetParseData,
+	cfgEOLOK bool,
+) (
+	portIn func(interface{}),
+) {
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		var n int
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		substr := pd.Source.content[pos:]
+
+		for i, char := range substr {
+			if unicode.IsSpace(char) && (cfgEOLOK || char != '\n') {
+				n = i + utf8.RuneLen(char)
+			} else {
+				break
+			}
+		}
+		if n > 0 {
+			createMatchedResult(pd, n)
+		} else {
+			createUnmatchedResult(pd, 0, "Expecting white space", nil)
+		}
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	}
+	return
+}
+
+// ParseRegexp parses text according to a predefined regular expression.
+// It can be configured wether EOL ('\n') is to be interpreted as space or not.
+func ParseRegexp(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData func(interface{}) *ParseData,
+	setParseData func(interface{}, *ParseData) interface{},
+	cfgRegexp string,
+) (
+	portIn func(interface{}),
+	err error,
+) {
+	var re *regexp.Regexp
+	if cfgRegexp[0] != '^' {
+		cfgRegexp = "^" + cfgRegexp
+	}
+	if re, err = regexp.Compile(cfgRegexp); err != nil {
+		return
+	}
+
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		substr := pd.Source.content[pos:]
+		match := re.FindStringIndex(substr)
+
+		if match != nil {
+			createMatchedResult(pd, match[1])
+			pd.Result.Value = pd.Result.Text
+		} else {
+			createUnmatchedResult(pd, 0, "Expecting match for regexp `"+re.String()[1:]+"`", nil)
+		}
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	}
+	return
+}
+
 /*
+// ------- Parse line comment:
+
+type ParseLineComment struct {
+	BaseParseOp
+	start string
+}
+
+func NewParseLineComment(parseData func(interface{}) *ParseData,
+	setParseData func(interface{}, *ParseData) interface{}, start string) *ParseLineComment {
+
+	p := &ParseLineComment{}
+	p.parseData = parseData
+	p.setParseData = setParseData
+	p.ConfigPort(start)
+	return p
+}
+func (p *ParseLineComment) ConfigPort(start string) {
+	p.start = start
+}
+func (p *ParseLineComment) InPort(data interface{}) {
+	pd := p.parseData(data)
+	pos := pd.Source.pos
+	l := len(p.start)
+	n := min(pos+l, len(pd.Source.content))
+	substr := pd.Source.content[pos:n]
+
+	if substr == p.start {
+		i := strings.IndexRune(pd.Source.content[n:], '\n')
+		if i >= 0 {
+			l += i
+		} else {
+			l = len(pd.Source.content) - pos
+		}
+		createMatchedResult(pd, l)
+		pd.Result.Value = ""
+	} else {
+		createUnmatchedResult(pd, 0, "Expecting line comment", nil)
+	}
+	p.HandleSemantics(data, pd)
+}
+
 // ------- Parse block comment:
 
 type ParseBlockComment struct {
@@ -88,241 +321,4 @@ func (p *ParseBlockComment) InPort(data interface{}) {
 	}
 	p.HandleSemantics(data, pd)
 }
-
-// ------- Parse line comment:
-
-type ParseLineComment struct {
-	BaseParseOp
-	start string
-}
-
-func NewParseLineComment(parseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{}, start string) *ParseLineComment {
-
-	p := &ParseLineComment{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	p.ConfigPort(start)
-	return p
-}
-func (p *ParseLineComment) ConfigPort(start string) {
-	p.start = start
-}
-func (p *ParseLineComment) InPort(data interface{}) {
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	l := len(p.start)
-	n := min(pos+l, len(pd.Source.content))
-	substr := pd.Source.content[pos:n]
-
-	if substr == p.start {
-		i := strings.IndexRune(pd.Source.content[n:], '\n')
-		if i >= 0 {
-			l += i
-		} else {
-			l = len(pd.Source.content) - pos
-		}
-		createMatchedResult(pd, l)
-		pd.Result.Value = ""
-	} else {
-		createUnmatchedResult(pd, 0, "Expecting line comment", nil)
-	}
-	p.HandleSemantics(data, pd)
-}
-
-// ------- Parse regexp:
-
-type ParseRegexp struct {
-	BaseParseOp
-	re *regexp.Regexp
-}
-
-func NewParseRegexp(parseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{}, re string) *ParseRegexp {
-
-	p := &ParseRegexp{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	p.ConfigPort(re)
-	return p
-}
-func (p *ParseRegexp) ConfigPort(s string) {
-	var t string
-	if s[0] == '^' {
-		t = s
-	} else {
-		t = "^" + s
-	}
-	re, err := regexp.Compile(t)
-	if err != nil {
-		p.errorPort(err)
-	} else {
-		p.re = re
-	}
-}
-func (p *ParseRegexp) InPort(data interface{}) {
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	substr := pd.Source.content[pos:]
-	match := p.re.FindStringIndex(substr)
-
-	if match != nil {
-		createMatchedResult(pd, match[1])
-		pd.Result.Value = pd.Result.Text
-	} else {
-		createUnmatchedResult(pd, 0, "Expecting match for regexp `"+p.re.String()[1:]+"`", nil)
-	}
-	p.HandleSemantics(data, pd)
-}
-
-// ------- Parse space:
-
-type ParseSpace struct {
-	BaseParseOp
-	eolOk bool
-}
-
-func NewParseSpace(parseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{}, eolOk bool) *ParseSpace {
-
-	p := &ParseSpace{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	p.ConfigPort(eolOk)
-	return p
-}
-func (p *ParseSpace) ConfigPort(eolOk bool) {
-	p.eolOk = eolOk
-}
-func (p *ParseSpace) InPort(data interface{}) {
-	var n int
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	substr := pd.Source.content[pos:]
-
-	for i, char := range substr {
-		if unicode.IsSpace(char) && (p.eolOk || char != '\n') {
-			n = i + utf8.RuneLen(char)
-		} else {
-			break
-		}
-	}
-	if n > 0 {
-		createMatchedResult(pd, n)
-	} else {
-		createUnmatchedResult(pd, 0, "Expecting white space", nil)
-	}
-	p.HandleSemantics(data, pd)
-}
 */
-
-// ParseEOF only matches at the end of the input.
-func ParseEOF(
-	out func(interface{}),
-	semOut func(interface{}),
-	getParseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{},
-) (
-	in func(interface{}),
-	semIn func(interface{}),
-	setSemOut func(func(interface{})),
-) {
-	in = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		n := len(pd.Source.content) - 1
-
-		if n > pos {
-			createUnmatchedResult(pd, 0,
-				fmt.Sprintf(
-					"Expecting end of input but got %d characters of input left",
-					n-pos,
-				),
-				nil,
-			)
-		} else {
-			createMatchedResult(pd, 0)
-		}
-		handleSemantics(out, semOut, setParseData, data, pd)
-	}
-	return
-}
-
-const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
-
-// ParseNatural parses a natural number at the current position of the parser.
-// The configuration has to be the radix of accepted numbers (e.g.: 10).
-func ParseNatural(
-	out func(interface{}),
-	semOut func(interface{}),
-	getParseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{},
-	cfgRadix int,
-) (
-	in func(interface{}),
-	semIn func(interface{}),
-	setSemOut func(func(interface{})),
-) {
-	// panic if cfgRadix < 2 or cfgRadix > 36 !!!
-	if cfgRadix < 2 || cfgRadix > 36 {
-		panic(&ParseError{"", fmt.Sprintf("The given radix of '%d' is out of the allowed range from 2 to 36.", cfgRadix), nil})
-	}
-	cfgDigits := allDigits[:cfgRadix]
-
-	in = func(data interface{}) {
-		var n int
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		substr := pd.Source.content[pos:]
-
-		for i, digit := range substr {
-			if strings.IndexRune(cfgDigits, unicode.ToLower(digit)) >= 0 {
-				n = i + 1
-			} else {
-				break
-			}
-		}
-		if n > 0 {
-			val, err := strconv.ParseUint(substr[:n], len(cfgDigits), 64)
-			if err == nil {
-				createMatchedResult(pd, n)
-				pd.Result.Value = val
-			} else {
-				createUnmatchedResult(pd, 0, "Natural number expected", err)
-			}
-		} else {
-			createUnmatchedResult(pd, 0, "Natural number expected", nil)
-		}
-		handleSemantics(out, semOut, setParseData, data, pd)
-	}
-	return
-}
-
-// ParseLiteral parses a literal value at the current position of the parser.
-// The configuration has to be the literal string we expect.
-func ParseLiteral(
-	out func(interface{}),
-	semOut func(interface{}),
-	getParseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{},
-	cfgLiteral string,
-) (
-	in func(interface{}),
-	semIn func(interface{}),
-	setSemOut func(func(interface{})),
-) {
-	cfgN := len(cfgLiteral)
-	setSemOut = func(sop func(interface{})) { semOut = sop }
-	semIn = defaultSemInPort(out, getParseData)
-	in = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		if len(pd.Source.content) >= pos+cfgN && pd.Source.content[pos:pos+cfgN] == cfgLiteral {
-			createMatchedResult(pd, cfgN)
-		} else {
-			createUnmatchedResult(pd, 0, "Literal '"+cfgLiteral+"' expected", nil)
-		}
-		handleSemantics(out, semOut, setParseData, data, pd)
-	}
-	return
-}
