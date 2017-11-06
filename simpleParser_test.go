@@ -105,6 +105,17 @@ func TestParseNatural(t *testing.T) {
 			expectedErrCount: 1,
 		},
 	})
+
+	_, err := ParseNatural(
+		nil,
+		nil,
+		getParseDataForTest,
+		setParseDataForTest,
+		37,
+	)
+	if err == nil || err.Error() == "" {
+		t.Errorf("Expected an error with a message.")
+	}
 }
 
 func TestParseEOF(t *testing.T) {
@@ -166,18 +177,6 @@ func TestParseSpace(t *testing.T) {
 		return
 	}
 
-	/*
-		runTest(t, pEolOk, newData("no match incl. EOL", 0, "ba"), newResult(0, "", nil, 0), 0, 1)
-		runTest(t, pEolOk, newData("empty incl. EOL", 0, ""), newResult(0, "", nil, 0), 0, 1)
-		runTest(t, pEolOk, newData("simple incl. EOL", 0, " "), newResult(0, " ", nil, -1), 1, 0)
-		runTest(t, pEolOk, newData("simple 2 incl. EOL", 0, " \t\r\n 123"), newResult(0, " \t\r\n ", nil, -1), 5, 0)
-		runTest(t, pEolOk, newData("simple 3 incl. EOL", 2, "12 \t\r\n 3456"), newResult(2, " \t\r\n ", nil, -1), 7, 0)
-		runTest(t, pNotOk, newData("no match excl. EOL", 0, "ba"), newResult(0, "", nil, 0), 0, 1)
-		runTest(t, pNotOk, newData("empty excl. EOL", 0, ""), newResult(0, "", nil, 0), 0, 1)
-		runTest(t, pNotOk, newData("simple excl. EOL", 0, " "), newResult(0, " ", nil, -1), 1, 0)
-		runTest(t, pNotOk, newData("simple 2 excl. EOL", 0, " \t\r\n 123"), newResult(0, " \t\r", nil, -1), 3, 0)
-		runTest(t, pNotOk, newData("simple 3 excl. EOL", 2, "12 \t\r\n 3456"), newResult(2, " \t\r", nil, -1), 5, 0)
-	*/
 	runTests(t, pEOLOK, []parseTestData{
 		{
 			givenParseData:   newData("no match incl. EOL", 0, "ba"),
@@ -315,14 +314,16 @@ func TestParseRegexp(t *testing.T) {
 		},
 	})
 
-	/*
-		Convey("Parse regexp with illegal regexp, ...", t, func() {
-			So(func() {
-				NewParseRegexp(func(data interface{}) *ParseData { return data.(*ParseData) },
-					func(data interface{}, pd *ParseData) interface{} { return pd }, `[a`)
-			}, ShouldPanic)
-		})
-	*/
+	_, err := ParseRegexp(
+		nil,
+		nil,
+		getParseDataForTest,
+		setParseDataForTest,
+		`[a`,
+	)
+	if err == nil || err.Error() == "" {
+		t.Errorf("Expected an error with a message.")
+	}
 }
 
 /*
