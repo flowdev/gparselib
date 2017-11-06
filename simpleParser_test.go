@@ -326,20 +326,68 @@ func TestParseRegexp(t *testing.T) {
 	}
 }
 
-/*
 func TestParseLineComment(t *testing.T) {
-	p := NewParseLineComment(func(data interface{}) *ParseData { return data.(*ParseData) },
-		func(data interface{}, pd *ParseData) interface{} { return pd }, "//")
+	p := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn, _ = ParseLineComment(
+			portOut,
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+			`//`,
+		)
+		return
+	}
 
-	runTest(t, p, newData("no match", 0, " // "), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("empty", 0, ""), newResult(0, "", nil, 0), 0, 1)
-	runTest(t, p, newData("simple", 0, "// 1\n"), newResult(0, "// 1", "", -1), 4, 0)
-	runTest(t, p, newData("simple 2", 0, "// 1\n 23"), newResult(0, "// 1", "", -1), 4, 0)
-	runTest(t, p, newData("simple 3", 2, "12// 1\n345"), newResult(2, "// 1", "", -1), 6, 0)
-	runTest(t, p, newData("simple 4", 2, "12// 1\r\n345"), newResult(2, "// 1\r", "", -1), 7, 0)
-	runTest(t, p, newData("evil", 0, "//"), newResult(0, "//", "", -1), 2, 0)
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("no match", 0, " // "),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("simple", 0, "// 1\n"),
+			expectedResult:   newResult(0, "// 1", "", -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 2", 0, "// 1\n 23"),
+			expectedResult:   newResult(0, "// 1", "", -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 3", 2, "12// 1\n345"),
+			expectedResult:   newResult(2, "// 1", "", -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 4", 2, "12// 1\r\n345"),
+			expectedResult:   newResult(2, "// 1\r", "", -1),
+			expectedSrcPos:   7,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("evil", 0, "//"),
+			expectedResult:   newResult(0, "//", "", -1),
+			expectedSrcPos:   2,
+			expectedErrCount: 0,
+		},
+	})
+
+	_, err := ParseLineComment(
+		nil,
+		nil,
+		getParseDataForTest,
+		setParseDataForTest,
+		``,
+	)
+	if err == nil || err.Error() == "" {
+		t.Errorf("Expected an error with a message.")
+	}
 }
-*/
 
 //func TestParseBlockComment(t *testing.T) {
 //	p := NewParseBlockComment(func(data interface{}) *ParseData { return data.(*ParseData) },

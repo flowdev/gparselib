@@ -1,6 +1,7 @@
 package gparselib
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -199,48 +200,48 @@ func ParseRegexp(
 	return
 }
 
-/*
-// ------- Parse line comment:
-
-type ParseLineComment struct {
-	BaseParseOp
-	start string
-}
-
-func NewParseLineComment(parseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{}, start string) *ParseLineComment {
-
-	p := &ParseLineComment{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	p.ConfigPort(start)
-	return p
-}
-func (p *ParseLineComment) ConfigPort(start string) {
-	p.start = start
-}
-func (p *ParseLineComment) InPort(data interface{}) {
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	l := len(p.start)
-	n := min(pos+l, len(pd.Source.content))
-	substr := pd.Source.content[pos:n]
-
-	if substr == p.start {
-		i := strings.IndexRune(pd.Source.content[n:], '\n')
-		if i >= 0 {
-			l += i
-		} else {
-			l = len(pd.Source.content) - pos
-		}
-		createMatchedResult(pd, l)
-		pd.Result.Value = ""
-	} else {
-		createUnmatchedResult(pd, 0, "Expecting line comment", nil)
+// ParseLineComment parses a comment until the end of the line.
+// The string that starts the comment (e.g.: `//`) has to be configured.
+func ParseLineComment(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData func(interface{}) *ParseData,
+	setParseData func(interface{}, *ParseData) interface{},
+	cfgStart string,
+) (
+	portIn func(interface{}),
+	err error,
+) {
+	if cfgStart == "" {
+		return nil, errors.New("expected start of line comment as configuration, got empty string")
 	}
-	p.HandleSemantics(data, pd)
+
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		l := len(cfgStart)
+		n := min(pos+l, len(pd.Source.content))
+		substr := pd.Source.content[pos:n]
+
+		if substr == cfgStart {
+			i := strings.IndexRune(pd.Source.content[n:], '\n')
+			if i >= 0 {
+				l += i
+			} else {
+				l = len(pd.Source.content) - pos
+			}
+			createMatchedResult(pd, l)
+			pd.Result.Value = ""
+		} else {
+			createUnmatchedResult(pd, 0, "Expecting line comment", nil)
+		}
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	}
+	return
 }
 
+/*
 // ------- Parse block comment:
 
 type ParseBlockComment struct {
