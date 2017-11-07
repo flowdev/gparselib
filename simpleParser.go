@@ -241,85 +241,84 @@ func ParseLineComment(
 	return
 }
 
-/*
-// ------- Parse block comment:
+// ParseBlockComment parses a comment until the end of the line.
+// The strings that start and end the comment (e.g.: `/*`, `*/`)
+// have to be configured.
+// A comment start or end inside a string literal (', " and `) is ignored.
+func ParseBlockComment(
+	portOut func(interface{}),
+	fillSemantics SemanticsOp,
+	getParseData func(interface{}) *ParseData,
+	setParseData func(interface{}, *ParseData) interface{},
+	cfgBegin string,
+	cfgEnd string,
+) (
+	portIn func(interface{}),
+	err error,
+) {
+	if cfgBegin == "" {
+		return nil, errors.New("expected start of block comment as configuration, got empty string")
+	}
+	if cfgEnd == "" {
+		return nil, errors.New("expected end of block comment as configuration, got empty string")
+	}
+	lBeg := len(cfgBegin)
+	lEnd := len(cfgEnd)
 
-type ParseBlockComment struct {
-	BaseParseOp
-	begin, end string
-}
+	portSemOut := makeSemanticsPort(fillSemantics, portOut)
+	portIn = func(data interface{}) {
+		pd := getParseData(data)
+		pos := pd.Source.pos
+		n := min(pos+lBeg, len(pd.Source.content))
+		substr := pd.Source.content[pos:n]
 
-func NewParseBlockComment(parseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{}, begin, end string) *ParseBlockComment {
+		if substr == cfgBegin {
+			afterBackslash := false
+			stringType := ' '
+			found := false
+			endRune, _ := utf8.DecodeRuneInString(cfgEnd)
+			reststr := pd.Source.content[n:]
 
-	p := &ParseBlockComment{}
-	p.parseData = parseData
-	p.setParseData = setParseData
-	p.ConfigPort(begin, end)
-	return p
-}
-func (p *ParseBlockComment) ConfigPort(begin, end string) {
-	p.begin = begin
-	p.end = end
-}
-func (p *ParseBlockComment) InPort(data interface{}) {
-	pd := p.parseData(data)
-	pos := pd.Source.pos
-	lBeg := len(p.begin)
-	lEnd := len(p.end)
-	n := min(pos+lBeg, len(pd.Source.content))
-	substr := pd.Source.content[pos:n]
-
-	if substr == p.begin {
-		afterBackslash := false
-		stringType := ' '
-		found := false
-		endRune, _ := utf8.DecodeRuneInString(p.end)
-		reststr := pd.Source.content[n:]
-
-	RuneLoop:
-		for i, r := range reststr {
-			switch {
-			case afterBackslash:
-				afterBackslash = false
-			case stringType == '\'' || stringType == '"':
-				switch r {
-				case '\\':
-					afterBackslash = true
-				case stringType:
-					stringType = ' '
-				}
-			case stringType == '`':
-				if r == '`' {
-					stringType = ' '
-				}
-			case stringType == ' ':
-				switch r {
-				case '\'':
-					stringType = '\''
-				case '"':
-					stringType = '"'
-				case '`':
-					stringType = '`'
-				case endRune:
-					if len(reststr) >= i+lEnd && reststr[i:i+lEnd] == p.end {
-						found = true
-						pos = i + lEnd
-						break RuneLoop
+		RuneLoop:
+			for i, r := range reststr {
+				switch {
+				case afterBackslash:
+					afterBackslash = false
+				case stringType == '\'' || stringType == '"':
+					switch r {
+					case '\\':
+						afterBackslash = true
+					case stringType:
+						stringType = ' '
+					}
+				case stringType == '`':
+					if r == '`' {
+						stringType = ' '
+					}
+				case stringType == ' ':
+					switch r {
+					case '\'', '"', '`':
+						stringType = r
+					case endRune:
+						if len(reststr) >= i+lEnd && reststr[i:i+lEnd] == cfgEnd {
+							found = true
+							pos = i + lEnd
+							break RuneLoop
+						}
 					}
 				}
 			}
-		}
-		if found {
-			createMatchedResult(pd, lBeg+pos)
-			pd.Result.Value = ""
+			if found {
+				createMatchedResult(pd, lBeg+pos)
+				pd.Result.Value = ""
+			} else {
+				createUnmatchedResult(pd, lBeg, fmt.Sprintf("Block comment isn't closed with '%s'", cfgEnd), nil)
+				pd.Source.pos += lBeg
+			}
 		} else {
-			createUnmatchedResult(pd, lBeg, "Block comment isn't closed properly", nil)
-			pd.Source.pos += lBeg
+			createUnmatchedResult(pd, 0, fmt.Sprintf("Expecting block comment starting with '%s', got '%s'", cfgBegin, substr), nil)
 		}
-	} else {
-		createUnmatchedResult(pd, 0, "Expecting block comment", nil)
+		handleSemantics(portOut, portSemOut, setParseData, data, pd)
 	}
-	p.HandleSemantics(data, pd)
+	return
 }
-*/
