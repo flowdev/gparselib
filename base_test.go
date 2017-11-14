@@ -3,65 +3,89 @@ package gparselib
 import (
 	"strings"
 	"testing"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestWhere(t *testing.T) {
-	src := &SourceData{Name: "file1", content: "content\nline2\nline3\nand4\n",
-		pos: 15, wherePrevNl: 13, whereLine: 3}
+	src := &SourceData{
+		Name:        "file1",
+		content:     "content\nline2\nline3\nand4\n",
+		pos:         15,
+		wherePrevNl: 13,
+		whereLine:   3,
+	}
 
-	Convey("Searching forward, ...", t, func() {
-		Convey(`... should find a position in the same line.`, func() {
-			where := where(src, 14)
+	specs := []struct {
+		givenSourceData *SourceData
+		givenPosition   int
+		expectedStrings []string
+	}{
+		{
+			givenSourceData: src,
+			givenPosition:   14,
+			expectedStrings: []string{
+				"File 'file1'",
+				"line 3",
+				"column 1",
+				"\nline3\n",
+			},
+		}, {
+			givenSourceData: src,
+			givenPosition:   len(src.content) - 1,
+			expectedStrings: []string{
+				"File 'file1'",
+				"line 4",
+				"column 5",
+				"\nand4\n",
+			},
+		}, {
+			givenSourceData: src,
+			givenPosition:   13,
+			expectedStrings: []string{
+				"File 'file1'",
+				"line 2",
+				"column 6",
+				"\nline2\n",
+			},
+		}, {
+			givenSourceData: src,
+			givenPosition:   0,
+			expectedStrings: []string{
+				"File 'file1'",
+				"line 1",
+				"column 1",
+				"\ncontent\n",
+			},
+		}, {
+			givenSourceData: &SourceData{
+				Name:        "empty",
+				content:     "",
+				pos:         0,
+				wherePrevNl: -1,
+				whereLine:   1,
+			},
+			givenPosition: 0,
+			expectedStrings: []string{
+				"File 'empty'",
+				"line 1",
+				"column 1",
+				"\n\n",
+			},
+		},
+	}
 
-			So(where, ShouldContainSubstring, "File '"+src.Name+"'")
-			So(where, ShouldContainSubstring, "line 3")
-			So(where, ShouldContainSubstring, "column 1")
-			So(where, ShouldEndWith, "\nline3\n")
-		})
-
-		Convey(`... should find position at the end.`, func() {
-			where := where(src, len(src.content)-1)
-
-			So(where, ShouldContainSubstring, "line 4")
-			So(where, ShouldContainSubstring, "column 5")
-			So(where, ShouldEndWith, "\nand4\n")
-		})
-	})
-
-	Convey("Searching backward, ...", t, func() {
-		Convey(`... should find a position in the previous line.`, func() {
-			where := where(src, 13)
-
-			So(where, ShouldContainSubstring, "File '"+src.Name+"'")
-			So(where, ShouldContainSubstring, "line 2")
-			So(where, ShouldContainSubstring, "column 6")
-			So(where, ShouldEndWith, "\nline2\n")
-		})
-
-		Convey(`... should find start position.`, func() {
-			where := where(src, 0)
-
-			So(where, ShouldContainSubstring, "line 1")
-			So(where, ShouldContainSubstring, "column 1")
-			So(where, ShouldEndWith, "\ncontent\n")
-		})
-	})
-
-	Convey("Searching in empty content, ...", t, func() {
-		src := &SourceData{Name: "empty", content: "",
-			pos: 0, wherePrevNl: -1, whereLine: 1}
-
-		Convey(`... should find start position.`, func() {
-			where := where(src, 0)
-
-			So(where, ShouldContainSubstring, "File '"+src.Name+"'")
-			So(where, ShouldContainSubstring, "line 1")
-			So(where, ShouldContainSubstring, "column 1")
-			So(where, ShouldEndWith, "\n")
-		})
-	})
+	for i, spec := range specs {
+		t.Logf("Test run: %d", i)
+		w := where(spec.givenSourceData, spec.givenPosition)
+		for _, s := range spec.expectedStrings {
+			if !strings.Contains(w, s) {
+				t.Errorf(
+					"Expected where string containing '%s', but got: '%s'",
+					s,
+					w,
+				)
+			}
+		}
+	}
 }
 
 func TestCreateUnmatchedResult(t *testing.T) {
