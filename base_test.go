@@ -89,26 +89,63 @@ func TestCreateUnmatchedResult(t *testing.T) {
 }
 
 func TestCreateMatchedResult(t *testing.T) {
-	pd := NewParseData("file1", "content\nline2\nline3\nand4\n")
-	pd.Source.pos = 15
-	pd.Source.wherePrevNl = 13
-	pd.Source.whereLine = 3
+	specs := []struct {
+		givenParseData       *ParseData
+		givenN               int
+		expectedResultPos    int
+		expectedResultErrPos int
+		expectedResultText   string
+	}{
+		{
+			givenParseData: &ParseData{
+				Source: SourceData{
+					Name:        "file1",
+					content:     "content\nline2\nline3\nand4\n",
+					pos:         15,
+					wherePrevNl: 13,
+					whereLine:   3,
+				},
+			},
+			givenN:               0,
+			expectedResultPos:    15,
+			expectedResultErrPos: -1,
+			expectedResultText:   "",
+		}, {
+			givenParseData: &ParseData{
+				Source: SourceData{
+					Name:        "file1",
+					content:     "content\nline2\nline3\nand4\n",
+					pos:         15,
+					wherePrevNl: 13,
+					whereLine:   3,
+				},
+			},
+			givenN:               4,
+			expectedResultPos:    15,
+			expectedResultErrPos: -1,
+			expectedResultText:   "ine3",
+		},
+	}
 
-	createMatchedResult(pd, 3)
-
-	Convey("Creating a matched result, ...", t, func() {
-		Convey(`... should create result with text, no error position and no value.`, func() {
-			So(pd.Result, ShouldNotBeNil)
-			So(pd.Result.Pos, ShouldEqual, 15)
-			So(pd.Result.ErrPos, ShouldEqual, -1)
-			So(pd.Result.Text, ShouldEqual, "ine")
-			So(pd.Result.Value, ShouldBeNil)
-		})
-
-		Convey(`... should give no error feedback.`, func() {
-			So(pd.Result.HasError(), ShouldBeFalse)
-		})
-	})
+	for _, spec := range specs {
+		createMatchedResult(spec.givenParseData, spec.givenN)
+		if spec.givenParseData.Result == nil {
+			t.Errorf("The result for result size %d shouldn't be nil but it is!", spec.givenN)
+			break
+		}
+		if spec.givenParseData.Result.Pos != spec.expectedResultPos {
+			t.Errorf("The result position should be %d, but is %d.", spec.expectedResultPos, spec.givenParseData.Result.Pos)
+		}
+		if spec.givenParseData.Result.ErrPos != spec.expectedResultErrPos {
+			t.Errorf("The result error position should be %d, but is %d.", spec.expectedResultErrPos, spec.givenParseData.Result.ErrPos)
+		}
+		if spec.givenParseData.Result.Text != spec.expectedResultText {
+			t.Errorf("The result text should be %s, but is %s.", spec.expectedResultText, spec.givenParseData.Result.Text)
+		}
+		if spec.givenParseData.Result.Value != nil {
+			t.Errorf("The result value for result size %d should be nil but it is: %#v", spec.givenN, spec.givenParseData.Result.Value)
+		}
+	}
 }
 
 func TestMinMax(t *testing.T) {
