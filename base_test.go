@@ -1,6 +1,7 @@
 package gparselib
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -64,28 +65,95 @@ func TestWhere(t *testing.T) {
 }
 
 func TestCreateUnmatchedResult(t *testing.T) {
-	pd := NewParseData("file1", "content\nline2\nline3\nand4\n")
-	pd.Source.pos = 15
-	pd.Source.wherePrevNl = 13
-	pd.Source.whereLine = 3
+	specs := []struct {
+		givenParseData       *ParseData
+		givenErrOffset       int
+		givenErrMsg          string
+		expectedResultPos    int
+		expectedResultErrPos int
+	}{
+		{
+			givenParseData: &ParseData{
+				Source: SourceData{
+					Name:        "file1",
+					content:     "content\nline2\nline3\nand4\n",
+					pos:         15,
+					wherePrevNl: 13,
+					whereLine:   3,
+				},
+			},
+			givenErrOffset:       0,
+			givenErrMsg:          "Bust1",
+			expectedResultPos:    15,
+			expectedResultErrPos: 15,
+		}, {
+			givenParseData: &ParseData{
+				Source: SourceData{
+					Name:        "file1",
+					content:     "content\nline2\nline3\nand4\n",
+					pos:         15,
+					wherePrevNl: 13,
+					whereLine:   3,
+				},
+			},
+			givenErrOffset:       3,
+			givenErrMsg:          "Bust2",
+			expectedResultPos:    15,
+			expectedResultErrPos: 18,
+		},
+	}
 
-	createUnmatchedResult(pd, 0, "Bust", nil)
-
-	Convey("Creating an unmatched result, ...", t, func() {
-		Convey(`... should create result with error position, empty text and no value.`, func() {
-			So(pd.Result, ShouldNotBeNil)
-			So(pd.Result.Pos, ShouldEqual, 15)
-			So(pd.Result.ErrPos, ShouldEqual, 15)
-			So(pd.Result.Text, ShouldBeEmpty)
-			So(pd.Result.Value, ShouldBeNil)
-		})
-
-		Convey(`... should give error feedback.`, func() {
-			So(pd.Result.HasError(), ShouldBeTrue)
-			So(len(pd.Result.Feedback), ShouldEqual, 1)
-			So(pd.Result.Feedback[0].String(), ShouldEndWith, "\nBust.")
-		})
-	})
+	for i, spec := range specs {
+		t.Logf("Test run: %d", i)
+		pd := spec.givenParseData
+		createUnmatchedResult(pd, spec.givenErrOffset, spec.givenErrMsg, nil)
+		if pd.Result == nil {
+			t.Errorf("The result shouldn't be nil but it is!")
+			break
+		}
+		if pd.Result.Pos != spec.expectedResultPos {
+			t.Errorf(
+				"The result position should be %d, but is %d.",
+				spec.expectedResultPos,
+				spec.givenParseData.Result.Pos,
+			)
+		}
+		if pd.Result.ErrPos != spec.expectedResultErrPos {
+			t.Errorf(
+				"The result error position should be %d, but is %d.",
+				spec.expectedResultErrPos,
+				pd.Result.ErrPos,
+			)
+		}
+		if pd.Result.Text != "" {
+			t.Errorf(
+				"The result text should be empty, but is '%s'.",
+				pd.Result.Text,
+			)
+		}
+		if pd.Result.Value != nil {
+			t.Errorf(
+				"The result value should be nil but it is: %#v",
+				pd.Result.Value,
+			)
+		}
+		if !pd.Result.HasError() {
+			t.Errorf("The result should contain an error, but it doesn't!")
+		}
+		if len(pd.Result.Feedback) != 1 {
+			t.Errorf(
+				"Expected length of feedback to be 1, but it is: %d",
+				len(pd.Result.Feedback),
+			)
+		}
+		if !strings.Contains(pd.Result.Feedback[0].String(), spec.givenErrMsg) {
+			t.Errorf(
+				"Expected error message containing '%s', but got: '%s'",
+				spec.givenErrMsg,
+				pd.Result.Feedback[0].String(),
+			)
+		}
+	}
 }
 
 func TestCreateMatchedResult(t *testing.T) {
@@ -127,23 +195,40 @@ func TestCreateMatchedResult(t *testing.T) {
 		},
 	}
 
-	for _, spec := range specs {
-		createMatchedResult(spec.givenParseData, spec.givenN)
-		if spec.givenParseData.Result == nil {
-			t.Errorf("The result for result size %d shouldn't be nil but it is!", spec.givenN)
+	for i, spec := range specs {
+		t.Logf("Test run: %d", i)
+		pd := spec.givenParseData
+		createMatchedResult(pd, spec.givenN)
+		if pd.Result == nil {
+			t.Errorf("The result shouldn't be nil but it is!")
 			break
 		}
-		if spec.givenParseData.Result.Pos != spec.expectedResultPos {
-			t.Errorf("The result position should be %d, but is %d.", spec.expectedResultPos, spec.givenParseData.Result.Pos)
+		if pd.Result.Pos != spec.expectedResultPos {
+			t.Errorf(
+				"The result position should be %d, but is %d.",
+				spec.expectedResultPos,
+				spec.givenParseData.Result.Pos,
+			)
 		}
-		if spec.givenParseData.Result.ErrPos != spec.expectedResultErrPos {
-			t.Errorf("The result error position should be %d, but is %d.", spec.expectedResultErrPos, spec.givenParseData.Result.ErrPos)
+		if pd.Result.ErrPos != spec.expectedResultErrPos {
+			t.Errorf(
+				"The result error position should be %d, but is %d.",
+				spec.expectedResultErrPos,
+				pd.Result.ErrPos,
+			)
 		}
-		if spec.givenParseData.Result.Text != spec.expectedResultText {
-			t.Errorf("The result text should be %s, but is %s.", spec.expectedResultText, spec.givenParseData.Result.Text)
+		if pd.Result.Text != spec.expectedResultText {
+			t.Errorf(
+				"The result text should be %s, but is %s.",
+				spec.expectedResultText,
+				pd.Result.Text,
+			)
 		}
-		if spec.givenParseData.Result.Value != nil {
-			t.Errorf("The result value for result size %d should be nil but it is: %#v", spec.givenN, spec.givenParseData.Result.Value)
+		if pd.Result.Value != nil {
+			t.Errorf(
+				"The result value should be nil but it is: %#v",
+				pd.Result.Value,
+			)
 		}
 	}
 }
