@@ -322,3 +322,93 @@ func TestParseAll_Nested(t *testing.T) {
 		},
 	})
 }
+
+func TestParseAny_NormalFunctionality(t *testing.T) {
+	plFlow := MakeParseLiteral("flow")
+	plNo := MakeParseLiteral("no")
+	p := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAny(
+			portOut,
+			[]SubparserOp{plFlow, plNo},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 3,
+		}, {
+			givenParseData:   newData("no match", 0, " flow 3"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 3,
+		}, {
+			givenParseData:   newData("match flow", 0, "flowabc"),
+			expectedResult:   newResult(0, "flow", nil, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match no", 2, "12noabc"),
+			expectedResult:   newResult(2, "no", nil, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match both", 3, "123flownoabc"),
+			expectedResult:   newResult(3, "flow", nil, -1),
+			expectedSrcPos:   7,
+			expectedErrCount: 0,
+		},
+	})
+}
+
+func TestParseAny_Nested(t *testing.T) {
+	plFlow := MakeParseLiteral("flow")
+	plNo := MakeParseLiteral("no")
+	pInner := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAny(
+			portOut,
+			[]SubparserOp{plFlow, plNo},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+
+	plFun := MakeParseLiteral("fun")
+	pOuter := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAny(
+			portOut,
+			[]SubparserOp{plFun, pInner},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+
+	runTests(t, pOuter, []parseTestData{
+		{
+			givenParseData:   newData("match flow", 3, "123flowabc"),
+			expectedResult:   newResult(3, "flow", nil, -1),
+			expectedSrcPos:   7,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match fun", 3, "123funabc"),
+			expectedResult:   newResult(3, "fun", nil, -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match no", 3, "123noabc"),
+			expectedResult:   newResult(3, "no", nil, -1),
+			expectedSrcPos:   5,
+			expectedErrCount: 0,
+		},
+	})
+}

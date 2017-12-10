@@ -194,6 +194,58 @@ func ParseAll(
 	return
 }
 
+// ParseAny calls multiple subparsers until one matches.
+// The result is only unsuccessful if no subparser matches.
+func ParseAny(
+	portOut func(interface{}),
+	fillSubparsers []SubparserOp,
+	fillSemantics SemanticsOp,
+	getParseData GetParseData,
+	setParseData SetParseData,
+) (portIn func(interface{})) {
+	defaultSemantics := func(pd *ParseData, tmp *tempData) {
+		subRes := tmp.subResults[len(tmp.subResults)-1]
+		pd.Result.Value = subRes.Value
+		pd.Result.Feedback = append(pd.Result.Feedback, subRes.Feedback...)
+	}
+
+	handleSubresult := func(data interface{}, pd *ParseData, tmp *tempData) *ParseResult {
+		switch {
+		case pd.Result.ErrPos < 0:
+			tmp.subResults = append(tmp.subResults, pd.Result)
+			pd.Result = nil
+			relPos := pd.Source.pos - tmp.pos
+			pd.Source.pos = tmp.pos
+			createMatchedResult(pd, relPos)
+			defaultSemantics(pd, tmp)
+			return nil
+		case pd.Result.ErrPos >= 0 && len(tmp.subResults)+1 >= len(fillSubparsers):
+			tmp.subResults = append(tmp.subResults, pd.Result)
+			relPos := pd.Result.Pos - tmp.pos
+			pd.Source.pos = tmp.pos
+			pd.Result = nil
+			createUnmatchedResult(pd, relPos, fmt.Sprintf("Any subparser should match. But all %d subparsers failed", len(fillSubparsers)), nil)
+			for _, subRes := range tmp.subResults {
+				pd.Result.Feedback = append(pd.Result.Feedback, subRes.Feedback...)
+			}
+			return nil
+		default:
+			pd.Source.pos = tmp.pos
+			return pd.Result
+		}
+	}
+
+	portIn = parseWithMultiSubOps(
+		portOut,
+		fillSubparsers,
+		fillSemantics,
+		getParseData,
+		setParseData,
+		handleSubresult,
+	)
+	return
+}
+
 // parseWithMultiSubOps is a base operation that is used in parser operations that have multiple subparsers.
 // The contract is the following:
 // parseWithMultiSubOps:
