@@ -18,9 +18,7 @@ func ParseLiteral(
 	getParseData GetParseData,
 	setParseData SetParseData,
 	cfgLiteral string,
-) (
-	portIn func(interface{}),
-) {
+) (portIn func(interface{})) {
 	cfgN := len(cfgLiteral)
 
 	portSemOut := makeSemanticsPort(fillSemantics, portOut)
@@ -55,10 +53,7 @@ func ParseNatural(
 	getParseData GetParseData,
 	setParseData SetParseData,
 	cfgRadix int,
-) (
-	portIn func(interface{}),
-	err error,
-) {
+) (portIn func(interface{}), err error) {
 	if cfgRadix < 2 || cfgRadix > 36 {
 		return nil,
 			&ParseError{
@@ -108,9 +103,7 @@ func ParseEOF(
 	fillSemantics SemanticsOp,
 	getParseData GetParseData,
 	setParseData SetParseData,
-) (
-	portIn func(interface{}),
-) {
+) (portIn func(interface{})) {
 	portSemOut := makeSemanticsPort(fillSemantics, portOut)
 	portIn = func(data interface{}) {
 		pd := getParseData(data)
@@ -142,9 +135,7 @@ func ParseSpace(
 	getParseData GetParseData,
 	setParseData SetParseData,
 	cfgEOLOK bool,
-) (
-	portIn func(interface{}),
-) {
+) (portIn func(interface{})) {
 	portSemOut := makeSemanticsPort(fillSemantics, portOut)
 	portIn = func(data interface{}) {
 		var n int
@@ -180,10 +171,7 @@ func ParseRegexp(
 	getParseData func(interface{}) *ParseData,
 	setParseData func(interface{}, *ParseData) interface{},
 	cfgRegexp string,
-) (
-	portIn func(interface{}),
-	err error,
-) {
+) (portIn func(interface{}), err error) {
 	var re *regexp.Regexp
 	if cfgRegexp[0] != '^' {
 		cfgRegexp = "^" + cfgRegexp
@@ -224,10 +212,7 @@ func ParseLineComment(
 	getParseData func(interface{}) *ParseData,
 	setParseData func(interface{}, *ParseData) interface{},
 	cfgStart string,
-) (
-	portIn func(interface{}),
-	err error,
-) {
+) (portIn func(interface{}), err error) {
 	if cfgStart == "" {
 		return nil,
 			errors.New(
@@ -272,10 +257,7 @@ func ParseBlockComment(
 	setParseData func(interface{}, *ParseData) interface{},
 	cfgStart string,
 	cfgEnd string,
-) (
-	portIn func(interface{}),
-	err error,
-) {
+) (portIn func(interface{}), err error) {
 	if cfgStart == "" {
 		return nil,
 			errors.New(

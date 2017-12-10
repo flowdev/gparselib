@@ -4,17 +4,22 @@ import (
 	"testing"
 )
 
-func TestParseOptional(t *testing.T) {
-	pl := func(portOut func(interface{})) (portIn func(interface{})) {
+func MakeParseLiteral(literal string) SubparserOp {
+	return func(portOut func(interface{})) (portIn func(interface{})) {
 		portIn = ParseLiteral(
 			portOut,
 			nil,
 			getParseDataForTest,
 			setParseDataForTest,
-			"flow",
+			literal,
 		)
 		return
 	}
+
+}
+
+func TestParseOptional(t *testing.T) {
+	pl := MakeParseLiteral("flow")
 	p := func(portOut func(interface{})) (portIn func(interface{})) {
 		portIn = ParseOptional(
 			portOut,
@@ -47,16 +52,7 @@ func TestParseOptional(t *testing.T) {
 }
 
 func TestParseMulti0(t *testing.T) {
-	pl := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			"flow",
-		)
-		return
-	}
+	pl := MakeParseLiteral("flow")
 	p := func(portOut func(interface{})) (portIn func(interface{})) {
 		portIn = ParseMulti0(
 			portOut,
@@ -89,16 +85,7 @@ func TestParseMulti0(t *testing.T) {
 }
 
 func TestParseMulti1(t *testing.T) {
-	pl := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			"flow",
-		)
-		return
-	}
+	pl := MakeParseLiteral("flow")
 	p := func(portOut func(interface{})) (portIn func(interface{})) {
 		portIn = ParseMulti1(
 			portOut,
@@ -131,16 +118,7 @@ func TestParseMulti1(t *testing.T) {
 }
 
 func TestParseMulti(t *testing.T) {
-	pl := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			"flow",
-		)
-		return
-	}
+	pl := MakeParseLiteral("flow")
 	p := func(portOut func(interface{})) (portIn func(interface{})) {
 		portIn = ParseMulti(
 			portOut,
@@ -180,16 +158,7 @@ func TestParseMulti(t *testing.T) {
 }
 
 func TestParseMultiNested(t *testing.T) {
-	pl := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			"flow",
-		)
-		return
-	}
+	pl := MakeParseLiteral("flow")
 	pm2to3 := func(portOut func(interface{})) (portIn func(interface{})) {
 		portIn = ParseMulti(
 			portOut,
@@ -229,6 +198,126 @@ func TestParseMultiNested(t *testing.T) {
 				-1,
 			),
 			expectedSrcPos:   24,
+			expectedErrCount: 0,
+		},
+	})
+}
+
+func TestParseAll_NormalFunctionality(t *testing.T) {
+	plFlow := MakeParseLiteral("flow")
+	plNo := MakeParseLiteral("no")
+	p := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAll(
+			portOut,
+			[]SubparserOp{plFlow, plNo},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("no match", 0, " flow no"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("match flow", 0, "flowabc"),
+			expectedResult:   newResult(0, "", nil, 4),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("match no", 3, "123noabc"),
+			expectedResult:   newResult(3, "", nil, 3),
+			expectedSrcPos:   3,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("match all", 3, "123flownoabc"),
+			expectedResult:   newResult(3, "flowno", []interface{}{nil, nil}, -1),
+			expectedSrcPos:   9,
+			expectedErrCount: 0,
+		},
+	})
+}
+
+func TestParseAll_ManySubs(t *testing.T) {
+	pl1 := MakeParseLiteral("1")
+	pl2 := MakeParseLiteral("2")
+	pl3 := MakeParseLiteral("3")
+	pl4 := MakeParseLiteral("4")
+	pl5 := MakeParseLiteral("5")
+	pl6 := MakeParseLiteral("6")
+	pl7 := MakeParseLiteral("7")
+	pl8 := MakeParseLiteral("8")
+	pl9 := MakeParseLiteral("9")
+	p := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAll(
+			portOut,
+			[]SubparserOp{pl1, pl2, pl3, pl4, pl5, pl6, pl7, pl8, pl9},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData: newData("match 9", 0, "1234567890"),
+			expectedResult: newResult(
+				0,
+				"123456789",
+				[]interface{}{nil, nil, nil, nil, nil, nil, nil, nil, nil},
+				-1,
+			),
+			expectedSrcPos:   9,
+			expectedErrCount: 0,
+		},
+	})
+}
+
+func TestParseAll_Nested(t *testing.T) {
+	plFlow := MakeParseLiteral("flow")
+	plNo := MakeParseLiteral("no")
+	pInner := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAll(
+			portOut,
+			[]SubparserOp{plFlow, plNo},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+	plFun := MakeParseLiteral("fun")
+	pOuter := func(portOut func(interface{})) (portIn func(interface{})) {
+		portIn = ParseAll(
+			portOut,
+			[]SubparserOp{plFun, pInner},
+			nil,
+			getParseDataForTest,
+			setParseDataForTest,
+		)
+		return
+	}
+
+	runTests(t, pOuter, []parseTestData{
+		{
+			givenParseData: newData("match nested", 3, "123funflownoabc"),
+			expectedResult: newResult(
+				3,
+				"funflowno",
+				[]interface{}{nil, []interface{}{nil, nil}},
+				-1,
+			),
+			expectedSrcPos:   12,
 			expectedErrCount: 0,
 		},
 	})

@@ -554,10 +554,10 @@ func newData(srcName string, srcPos int, srcContent string) *ParseData {
 
 func runTests(t *testing.T, sp testParseOp, specs []parseTestData) {
 	var pd2 *ParseData
-	inPort := sp(func(data interface{}) { pd2 = data.(*ParseData) })
+	portIn := sp(func(data interface{}) { pd2 = data.(*ParseData) })
 	for _, spec := range specs {
 		t.Logf("Parsing source '%s'.", spec.givenParseData.Source.Name)
-		inPort(spec.givenParseData)
+		portIn(spec.givenParseData)
 
 		if pd2.Source.pos != spec.expectedSrcPos {
 			t.Errorf(
@@ -642,11 +642,11 @@ func printErrors(fbs []*FeedbackItem) string {
 	return result
 }
 
-func SemanticsTestOp(outPort func(interface{})) (inPort func(interface{})) {
-	inPort = func(data interface{}) {
+func SemanticsTestOp(portOut func(interface{})) (portIn func(interface{})) {
+	portIn = func(data interface{}) {
 		p := data.(*ParseData)
 		p.Result.Value = semanticTestValue
-		outPort(p)
+		portOut(p)
 	}
 	return
 }
