@@ -6,15 +6,7 @@ import (
 )
 
 // testParseOp is the interface of all parsers to be tested.
-type testParseOp func(outPort func(interface{})) (inPort func(interface{}))
-
-func getParseDataForTest(data interface{}) *ParseData {
-	return data.(*ParseData)
-}
-
-func setParseDataForTest(data interface{}, pd *ParseData) interface{} {
-	return pd
-}
+type testParseOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
 
 type parseTestData struct {
 	givenParseData   *ParseData
@@ -24,15 +16,8 @@ type parseTestData struct {
 }
 
 func TestParseLiteral(t *testing.T) {
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			"func",
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseLiteral(pd, ctx, nil, "func")
 	}
 
 	runTests(t, p, []parseTestData{
@@ -66,15 +51,9 @@ func TestParseLiteral(t *testing.T) {
 }
 
 func TestParseNatural(t *testing.T) {
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn, _ = ParseNatural(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			10,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseNatural(pd, ctx, nil, 10)
+		return pd, ctx
 	}
 
 	runTests(t, p, []parseTestData{
@@ -110,27 +89,15 @@ func TestParseNatural(t *testing.T) {
 		},
 	})
 
-	_, err := ParseNatural(
-		nil,
-		nil,
-		getParseDataForTest,
-		setParseDataForTest,
-		37,
-	)
+	_, _, err := ParseNatural(nil, nil, nil, 37)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
 }
 
 func TestParseEOF(t *testing.T) {
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseEOF(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseEOF(pd, ctx, nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -156,29 +123,14 @@ func TestParseEOF(t *testing.T) {
 			expectedErrCount: 0,
 		},
 	})
-
 }
 
 func TestParseSpace(t *testing.T) {
-	pEOLOK := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseSpace(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			true,
-		)
-		return
+	pEOLOK := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseSpace(pd, ctx, nil, true)
 	}
-	pEOLNotOK := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseSpace(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			false,
-		)
-		return
+	pEOLNotOK := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseSpace(pd, ctx, nil, false)
 	}
 
 	runTests(t, pEOLOK, []parseTestData{
@@ -248,25 +200,13 @@ func TestParseSpace(t *testing.T) {
 }
 
 func TestParseRegexp(t *testing.T) {
-	pWiV := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn, _ = ParseRegexp(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			`^[a]+`,
-		)
-		return
+	pWiV := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		p, _ := NewParseRegexp(`^[a]+`)
+		return p.In(pd, ctx, nil)
 	}
-	pWoV := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn, _ = ParseRegexp(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			`[a]+`,
-		)
-		return
+	pWoV := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		p, _ := NewParseRegexp(`[a]+`)
+		return p.In(pd, ctx, nil)
 	}
 
 	runTests(t, pWiV, []parseTestData{
@@ -326,28 +266,16 @@ func TestParseRegexp(t *testing.T) {
 		},
 	})
 
-	_, err := ParseRegexp(
-		nil,
-		nil,
-		getParseDataForTest,
-		setParseDataForTest,
-		`[a`,
-	)
+	_, err := NewParseRegexp(`[a`)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
 }
 
 func TestParseLineComment(t *testing.T) {
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn, _ = ParseLineComment(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			`//`,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseLineComment(pd, ctx, nil, `//`)
+		return pd, ctx
 	}
 
 	runTests(t, p, []parseTestData{
@@ -389,29 +317,16 @@ func TestParseLineComment(t *testing.T) {
 		},
 	})
 
-	_, err := ParseLineComment(
-		nil,
-		nil,
-		getParseDataForTest,
-		setParseDataForTest,
-		``,
-	)
+	_, _, err := ParseLineComment(nil, nil, nil, ``)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
 }
 
 func TestParseBlockComment(t *testing.T) {
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn, _ = ParseBlockComment(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			`/*`,
-			`*/`,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseBlockComment(pd, ctx, nil, `/*`, `*/`)
+		return pd, ctx
 	}
 
 	runTests(t, p, []parseTestData{
@@ -484,25 +399,11 @@ func TestParseBlockComment(t *testing.T) {
 		},
 	})
 
-	_, err := ParseBlockComment(
-		nil,
-		nil,
-		getParseDataForTest,
-		setParseDataForTest,
-		``,
-		`*/`,
-	)
+	_, _, err := ParseBlockComment(nil, nil, nil, ``, `*/`)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message for missing comment start.")
 	}
-	_, err = ParseBlockComment(
-		nil,
-		nil,
-		getParseDataForTest,
-		setParseDataForTest,
-		`/*`,
-		``,
-	)
+	_, _, err = ParseBlockComment(nil, nil, nil, `/*`, ``)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message for missing comment end.")
 	}
@@ -511,15 +412,8 @@ func TestParseBlockComment(t *testing.T) {
 const semanticTestValue = "Semantic test!!!"
 
 func TestParseSemantics(t *testing.T) {
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			SemanticsTestOp,
-			getParseDataForTest,
-			setParseDataForTest,
-			"func",
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseLiteral(pd, ctx, SemanticsTestOp, `func`)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -554,10 +448,9 @@ func newData(srcName string, srcPos int, srcContent string) *ParseData {
 
 func runTests(t *testing.T, sp testParseOp, specs []parseTestData) {
 	var pd2 *ParseData
-	portIn := sp(func(data interface{}) { pd2 = data.(*ParseData) })
 	for _, spec := range specs {
 		t.Logf("Parsing source '%s'.", spec.givenParseData.Source.Name)
-		portIn(spec.givenParseData)
+		pd2, _ = sp(spec.givenParseData, nil)
 
 		if pd2.Source.pos != spec.expectedSrcPos {
 			t.Errorf(
@@ -592,21 +485,18 @@ func runTests(t *testing.T, sp testParseOp, specs []parseTestData) {
 			t.Logf("The acutal value isn't equal to the expected one:")
 			t.Errorf(
 				"Expected value of type '%T', got '%T'.",
-				spec.expectedResult.Value,
-				pd2.Result.Value,
+				spec.expectedResult.Value, pd2.Result.Value,
 			)
 			t.Errorf(
 				"Expected value '%#v', got '%#v'.",
-				spec.expectedResult.Value,
-				pd2.Result.Value,
+				spec.expectedResult.Value, pd2.Result.Value,
 			)
 		}
 
 		if pd2.Result.ErrPos != spec.expectedResult.ErrPos {
 			t.Errorf(
 				"Expected result error position %d, got %d.",
-				spec.expectedResult.ErrPos,
-				pd2.Result.ErrPos,
+				spec.expectedResult.ErrPos, pd2.Result.ErrPos,
 			)
 		}
 		if pd2.Result.HasError() && spec.expectedErrCount <= 0 {
@@ -617,8 +507,7 @@ func runTests(t *testing.T, sp testParseOp, specs []parseTestData) {
 			t.Logf("Actual errors are: %s", printErrors(pd2.Result.Feedback))
 			t.Fatalf(
 				"Expected %d errors, got %d.",
-				spec.expectedErrCount,
-				len(pd2.Result.Feedback),
+				spec.expectedErrCount, len(pd2.Result.Feedback),
 			)
 		}
 		if spec.expectedErrCount > 0 &&
@@ -642,11 +531,7 @@ func printErrors(fbs []*FeedbackItem) string {
 	return result
 }
 
-func SemanticsTestOp(portOut func(interface{})) (portIn func(interface{})) {
-	portIn = func(data interface{}) {
-		p := data.(*ParseData)
-		p.Result.Value = semanticTestValue
-		portOut(p)
-	}
-	return
+func SemanticsTestOp(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+	pd.Result.Value = semanticTestValue
+	return pd, nil
 }

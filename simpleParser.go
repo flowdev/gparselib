@@ -13,32 +13,25 @@ import (
 // ParseLiteral parses a literal value at the current position of the parser.
 // The configuration has to be the literal string we expect.
 func ParseLiteral(
-	portOut func(interface{}),
+	pd *ParseData,
+	ctx interface{},
 	fillSemantics SemanticsOp,
-	getParseData GetParseData,
-	setParseData SetParseData,
 	cfgLiteral string,
-) (portIn func(interface{})) {
+) (*ParseData, interface{}) {
 	cfgN := len(cfgLiteral)
+	pos := pd.Source.pos
+	if len(pd.Source.content) >= pos+cfgN &&
+		pd.Source.content[pos:pos+cfgN] == cfgLiteral {
 
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		if len(pd.Source.content) >= pos+cfgN &&
-			pd.Source.content[pos:pos+cfgN] == cfgLiteral {
-
-			createMatchedResult(pd, cfgN)
-		} else {
-			createUnmatchedResult(
-				pd,
-				0,
-				"Literal '"+cfgLiteral+"' expected",
-				nil)
-		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+		createMatchedResult(pd, cfgN)
+	} else {
+		createUnmatchedResult(
+			pd,
+			0,
+			"Literal '"+cfgLiteral+"' expected",
+			nil)
 	}
-	return
+	return handleSemantics(fillSemantics, pd, ctx)
 }
 
 // This is needed for: ParseNatural
@@ -48,14 +41,13 @@ const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
 // The configuration has to be the radix of accepted numbers (e.g.: 10).
 // If the radix is smaller than 2 or larger than 36 an error is returned.
 func ParseNatural(
-	portOut func(interface{}),
+	pd *ParseData,
+	ctx interface{},
 	fillSemantics SemanticsOp,
-	getParseData GetParseData,
-	setParseData SetParseData,
 	cfgRadix int,
-) (portIn func(interface{}), err error) {
+) (*ParseData, interface{}, error) {
 	if cfgRadix < 2 || cfgRadix > 36 {
-		return nil,
+		return nil, nil,
 			&ParseError{
 				where: "",
 				myErr: fmt.Sprintf(
@@ -67,97 +59,81 @@ func ParseNatural(
 	}
 	cfgDigits := allDigits[:cfgRadix]
 
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		var n int
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		substr := pd.Source.content[pos:]
+	var n int
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
 
-		for i, digit := range substr {
-			if strings.IndexRune(cfgDigits, unicode.ToLower(digit)) >= 0 {
-				n = i + 1
-			} else {
-				break
-			}
-		}
-		if n > 0 {
-			val, err := strconv.ParseUint(substr[:n], len(cfgDigits), 64)
-			if err == nil {
-				createMatchedResult(pd, n)
-				pd.Result.Value = val
-			} else {
-				createUnmatchedResult(pd, 0, "Natural number expected", err)
-			}
+	for i, digit := range substr {
+		if strings.IndexRune(cfgDigits, unicode.ToLower(digit)) >= 0 {
+			n = i + 1
 		} else {
-			createUnmatchedResult(pd, 0, "Natural number expected", nil)
+			break
 		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
 	}
-	return
+	if n > 0 {
+		val, err := strconv.ParseUint(substr[:n], cfgRadix, 64)
+		if err == nil {
+			createMatchedResult(pd, n)
+			pd.Result.Value = val
+		} else {
+			createUnmatchedResult(pd, 0, "Natural number expected", err)
+		}
+	} else {
+		createUnmatchedResult(pd, 0, "Natural number expected", nil)
+	}
+	pd, ctx = handleSemantics(fillSemantics, pd, ctx)
+	return pd, ctx, nil
 }
 
 // ParseEOF only matches at the end of the input.
 func ParseEOF(
-	portOut func(interface{}),
+	pd *ParseData,
+	ctx interface{},
 	fillSemantics SemanticsOp,
-	getParseData GetParseData,
-	setParseData SetParseData,
-) (portIn func(interface{})) {
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		n := len(pd.Source.content) - 1
+) (*ParseData, interface{}) {
+	pos := pd.Source.pos
+	n := len(pd.Source.content) - 1
 
-		if n > pos {
-			createUnmatchedResult(pd, 0,
-				fmt.Sprintf(
-					"Expecting end of input but still got %d bytes",
-					n-pos,
-				),
-				nil,
-			)
-		} else {
-			createMatchedResult(pd, 0)
-		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	if n > pos {
+		createUnmatchedResult(pd, 0,
+			fmt.Sprintf(
+				"Expecting end of input but still got %d bytes",
+				n-pos,
+			),
+			nil,
+		)
+	} else {
+		createMatchedResult(pd, 0)
 	}
-	return
+	return handleSemantics(fillSemantics, pd, ctx)
 }
 
 // ParseSpace parses one or more space characters.
 // Space is defined by unicode.IsSpace().
 // It can be configured wether EOL ('\n') is to be interpreted as space or not.
 func ParseSpace(
-	portOut func(interface{}),
+	pd *ParseData,
+	ctx interface{},
 	fillSemantics SemanticsOp,
-	getParseData GetParseData,
-	setParseData SetParseData,
 	cfgEOLOK bool,
-) (portIn func(interface{})) {
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		var n int
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		substr := pd.Source.content[pos:]
+) (*ParseData, interface{}) {
+	var n int
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
 
-		for i, char := range substr {
-			if unicode.IsSpace(char) && (cfgEOLOK || char != '\n') {
-				n = i + utf8.RuneLen(char)
-			} else {
-				break
-			}
-		}
-		if n > 0 {
-			createMatchedResult(pd, n)
+	for i, char := range substr {
+		if unicode.IsSpace(char) && (cfgEOLOK || char != '\n') {
+			n = i + utf8.RuneLen(char)
 		} else {
-			createUnmatchedResult(pd, 0, "Expecting white space", nil)
+			break
 		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
 	}
-	return
+	if n > 0 {
+		createMatchedResult(pd, n)
+	} else {
+		createUnmatchedResult(pd, 0, "Expecting white space", nil)
+	}
+	return handleSemantics(fillSemantics, pd, ctx)
 }
 
 // ParseRegexp parses text according to a predefined regular expression.
@@ -165,84 +141,78 @@ func ParseSpace(
 // If the regular expression doesn't start with a `^` it will be added
 // automatically.
 // If the regular expression can't be compiled an error is returned.
-func ParseRegexp(
-	portOut func(interface{}),
-	fillSemantics SemanticsOp,
-	getParseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{},
-	cfgRegexp string,
-) (portIn func(interface{}), err error) {
-	var re *regexp.Regexp
+type ParseRegexp regexp.Regexp
+
+// NewParseRegexp creates a new parser for the given regular expression.
+// If the regular expression is invalid an error is returned.
+func NewParseRegexp(cfgRegexp string) (*ParseRegexp, error) {
 	if cfgRegexp[0] != '^' {
 		cfgRegexp = "^" + cfgRegexp
 	}
-	if re, err = regexp.Compile(cfgRegexp); err != nil {
-		return
-	}
+	re, err := regexp.Compile(cfgRegexp)
+	return (*ParseRegexp)(re), err
+}
 
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		substr := pd.Source.content[pos:]
-		match := re.FindStringIndex(substr)
+// In is the input port of the ParseRegexp operation.
+func (pr *ParseRegexp) In(
+	pd *ParseData,
+	ctx interface{},
+	fillSemantics SemanticsOp,
+) (*ParseData, interface{}) {
+	re := (*regexp.Regexp)(pr)
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
+	match := re.FindStringIndex(substr)
 
-		if match != nil {
-			createMatchedResult(pd, match[1])
-			pd.Result.Value = pd.Result.Text
-		} else {
-			createUnmatchedResult(
-				pd,
-				0,
-				"Expecting match for regexp `"+re.String()[1:]+"`",
-				nil,
-			)
-		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	if match != nil {
+		createMatchedResult(pd, match[1])
+		pd.Result.Value = pd.Result.Text
+	} else {
+		createUnmatchedResult(
+			pd,
+			0,
+			"Expecting match for regexp `"+re.String()[1:]+"`",
+			nil,
+		)
 	}
-	return
+	return handleSemantics(fillSemantics, pd, ctx)
 }
 
 // ParseLineComment parses a comment until the end of the line.
 // The string that starts the comment (e.g.: `//`) has to be configured.
 // If the start of the comment is empty an error is returned.
 func ParseLineComment(
-	portOut func(interface{}),
+	pd *ParseData,
+	ctx interface{},
 	fillSemantics SemanticsOp,
-	getParseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{},
 	cfgStart string,
-) (portIn func(interface{}), err error) {
+) (*ParseData, interface{}, error) {
 	if cfgStart == "" {
-		return nil,
+		return nil, nil,
 			errors.New(
 				"expected start of line comment as config, got empty string",
 			)
 	}
 
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		l := len(cfgStart)
-		n := min(pos+l, len(pd.Source.content))
-		substr := pd.Source.content[pos:n]
+	pos := pd.Source.pos
+	l := len(cfgStart)
+	n := min(pos+l, len(pd.Source.content))
+	substr := pd.Source.content[pos:n]
 
-		if substr == cfgStart {
-			i := strings.IndexRune(pd.Source.content[n:], '\n')
-			if i >= 0 {
-				l += i
-			} else {
-				l = len(pd.Source.content) - pos
-			}
-			createMatchedResult(pd, l)
-			pd.Result.Value = ""
+	if substr == cfgStart {
+		i := strings.IndexRune(pd.Source.content[n:], '\n')
+		if i >= 0 {
+			l += i
 		} else {
-			createUnmatchedResult(pd, 0, "Expecting line comment", nil)
+			l = len(pd.Source.content) - pos
 		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+		createMatchedResult(pd, l)
+		pd.Result.Value = ""
+	} else {
+		createUnmatchedResult(pd, 0, "Expecting line comment", nil)
 	}
-	return
+	pd, ctx = handleSemantics(fillSemantics, pd, ctx)
+	return pd, ctx, nil
 }
 
 // ParseBlockComment parses a comment until the end of the line.
@@ -251,21 +221,20 @@ func ParseLineComment(
 // A comment start or end inside a string literal (', " and `) is ignored.
 // If the start or end of the comment is empty an error is returned.
 func ParseBlockComment(
-	portOut func(interface{}),
+	pd *ParseData,
+	ctx interface{},
 	fillSemantics SemanticsOp,
-	getParseData func(interface{}) *ParseData,
-	setParseData func(interface{}, *ParseData) interface{},
 	cfgStart string,
 	cfgEnd string,
-) (portIn func(interface{}), err error) {
+) (*ParseData, interface{}, error) {
 	if cfgStart == "" {
-		return nil,
+		return nil, nil,
 			errors.New(
 				"expected start of block comment as config, got empty string",
 			)
 	}
 	if cfgEnd == "" {
-		return nil,
+		return nil, nil,
 			errors.New(
 				"expected end of block comment as config, got empty string",
 			)
@@ -273,75 +242,71 @@ func ParseBlockComment(
 	lBeg := len(cfgStart)
 	lEnd := len(cfgEnd)
 
-	portSemOut := makeSemanticsPort(fillSemantics, portOut)
-	portIn = func(data interface{}) {
-		pd := getParseData(data)
-		pos := pd.Source.pos
-		n := min(pos+lBeg, len(pd.Source.content))
-		substr := pd.Source.content[pos:n]
+	pos := pd.Source.pos
+	n := min(pos+lBeg, len(pd.Source.content))
+	substr := pd.Source.content[pos:n]
 
-		if substr == cfgStart {
-			afterBackslash := false
-			stringType := ' '
-			found := false
-			endRune, _ := utf8.DecodeRuneInString(cfgEnd)
-			reststr := pd.Source.content[n:]
+	if substr == cfgStart {
+		afterBackslash := false
+		stringType := ' '
+		found := false
+		endRune, _ := utf8.DecodeRuneInString(cfgEnd)
+		reststr := pd.Source.content[n:]
 
-		RuneLoop:
-			for i, r := range reststr {
-				switch {
-				case afterBackslash:
-					afterBackslash = false
-				case stringType == '\'' || stringType == '"':
-					switch r {
-					case '\\':
-						afterBackslash = true
-					case stringType:
-						stringType = ' '
-					}
-				case stringType == '`':
-					if r == '`' {
-						stringType = ' '
-					}
-				case stringType == ' ':
-					switch r {
-					case '\'', '"', '`':
-						stringType = r
-					case endRune:
-						if len(reststr) >= i+lEnd &&
-							reststr[i:i+lEnd] == cfgEnd {
+	RuneLoop:
+		for i, r := range reststr {
+			switch {
+			case afterBackslash:
+				afterBackslash = false
+			case stringType == '\'' || stringType == '"':
+				switch r {
+				case '\\':
+					afterBackslash = true
+				case stringType:
+					stringType = ' '
+				}
+			case stringType == '`':
+				if r == '`' {
+					stringType = ' '
+				}
+			case stringType == ' ':
+				switch r {
+				case '\'', '"', '`':
+					stringType = r
+				case endRune:
+					if len(reststr) >= i+lEnd &&
+						reststr[i:i+lEnd] == cfgEnd {
 
-							found = true
-							pos = i + lEnd
-							break RuneLoop
-						}
+						found = true
+						pos = i + lEnd
+						break RuneLoop
 					}
 				}
 			}
-			if found {
-				createMatchedResult(pd, lBeg+pos)
-				pd.Result.Value = ""
-			} else {
-				createUnmatchedResult(
-					pd,
-					lBeg,
-					fmt.Sprintf("Block comment isn't closed with '%s'", cfgEnd),
-					nil,
-				)
-				pd.Source.pos += lBeg
-			}
+		}
+		if found {
+			createMatchedResult(pd, lBeg+pos)
+			pd.Result.Value = ""
 		} else {
 			createUnmatchedResult(
 				pd,
-				0,
-				fmt.Sprintf(
-					"Expecting block comment starting with '%s', got '%s'",
-					cfgStart,
-					substr),
+				lBeg,
+				fmt.Sprintf("Block comment isn't closed with '%s'", cfgEnd),
 				nil,
 			)
+			pd.Source.pos += lBeg
 		}
-		handleSemantics(portOut, portSemOut, setParseData, data, pd)
+	} else {
+		createUnmatchedResult(
+			pd,
+			0,
+			fmt.Sprintf(
+				"Expecting block comment starting with '%s', got '%s'",
+				cfgStart,
+				substr),
+			nil,
+		)
 	}
-	return
+	pd, ctx = handleSemantics(fillSemantics, pd, ctx)
+	return pd, ctx, nil
 }

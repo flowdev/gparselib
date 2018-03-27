@@ -119,35 +119,16 @@ func (e *ParseError) String() string {
 
 // ------- Base for all parsers:
 
-// GetParseData is the interface for getting ParseData from generic data.
-type GetParseData func(interface{}) *ParseData
+// SemanticsOp is a simple filter for parser and context data.
+type SemanticsOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
 
-// SetParseData is the interface for setting ParseData to generic data.
-type SetParseData func(interface{}, *ParseData) interface{}
-
-// SemanticsOp is a simple filter for whatever data the client likes to use.
-type SemanticsOp func(portOut func(interface{})) (portIn func(interface{}))
-
-func makeSemanticsPort(semOp SemanticsOp, portOut func(interface{})) func(interface{}) {
-	if semOp == nil {
-		return nil
+// handleSemantics calls fillSemantics if given and no error was detected, and always clears any subresults.
+func handleSemantics(fillSemantics SemanticsOp, pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+	if fillSemantics != nil && pd.Result.ErrPos < 0 {
+		pd, ctx = fillSemantics(pd, ctx)
 	}
-	return semOp(portOut)
-}
-
-func handleSemantics(
-	outPort func(interface{}),
-	semOutPort func(interface{}),
-	setParseData SetParseData,
-	dat interface{},
-	pd *ParseData,
-) {
-	if semOutPort != nil && pd.Result.ErrPos < 0 {
-		semOutPort(setParseData(dat, pd))
-	} else {
-		pd.SubResults = nil
-		outPort(setParseData(dat, pd))
-	}
+	pd.SubResults = nil
+	return pd, ctx
 }
 
 //
