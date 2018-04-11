@@ -5,30 +5,14 @@ import (
 )
 
 func MakeParseLiteral(literal string) SubparserOp {
-	return func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseLiteral(
-			portOut,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			literal,
-		)
-		return
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseLiteral(pd, ctx, nil, literal)
 	}
-
 }
 
 func TestParseOptional(t *testing.T) {
-	pl := MakeParseLiteral("flow")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseOptional(
-			portOut,
-			pl,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseOptional(pd, ctx, MakeParseLiteral("flow"), nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -52,16 +36,8 @@ func TestParseOptional(t *testing.T) {
 }
 
 func TestParseMulti0(t *testing.T) {
-	pl := MakeParseLiteral("flow")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseMulti0(
-			portOut,
-			pl,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti0(pd, ctx, MakeParseLiteral("flow"), nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -85,16 +61,8 @@ func TestParseMulti0(t *testing.T) {
 }
 
 func TestParseMulti1(t *testing.T) {
-	pl := MakeParseLiteral("flow")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseMulti1(
-			portOut,
-			pl,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti1(pd, ctx, MakeParseLiteral("flow"), nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -118,18 +86,8 @@ func TestParseMulti1(t *testing.T) {
 }
 
 func TestParseMulti(t *testing.T) {
-	pl := MakeParseLiteral("flow")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseMulti(
-			portOut,
-			pl,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			2,
-			3,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti(pd, ctx, MakeParseLiteral("flow"), nil, 2, 3)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -158,28 +116,11 @@ func TestParseMulti(t *testing.T) {
 }
 
 func TestParseMultiNested(t *testing.T) {
-	pl := MakeParseLiteral("flow")
-	pm2to3 := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseMulti(
-			portOut,
-			pl,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-			2,
-			3,
-		)
-		return
+	pm2to3 := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti(pd, ctx, MakeParseLiteral("flow"), nil, 2, 3)
 	}
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseMulti1(
-			portOut,
-			pm2to3,
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti1(pd, ctx, pm2to3, nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -206,15 +147,8 @@ func TestParseMultiNested(t *testing.T) {
 func TestParseAll_NormalFunctionality(t *testing.T) {
 	plFlow := MakeParseLiteral("flow")
 	plNo := MakeParseLiteral("no")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAll(
-			portOut,
-			[]SubparserOp{plFlow, plNo},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAll(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -257,15 +191,9 @@ func TestParseAll_ManySubs(t *testing.T) {
 	pl7 := MakeParseLiteral("7")
 	pl8 := MakeParseLiteral("8")
 	pl9 := MakeParseLiteral("9")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAll(
-			portOut,
-			[]SubparserOp{pl1, pl2, pl3, pl4, pl5, pl6, pl7, pl8, pl9},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAll(pd, ctx,
+			[]SubparserOp{pl1, pl2, pl3, pl4, pl5, pl6, pl7, pl8, pl9}, nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -286,26 +214,12 @@ func TestParseAll_ManySubs(t *testing.T) {
 func TestParseAll_Nested(t *testing.T) {
 	plFlow := MakeParseLiteral("flow")
 	plNo := MakeParseLiteral("no")
-	pInner := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAll(
-			portOut,
-			[]SubparserOp{plFlow, plNo},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	pInner := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAll(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
 	}
 	plFun := MakeParseLiteral("fun")
-	pOuter := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAll(
-			portOut,
-			[]SubparserOp{plFun, pInner},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	pOuter := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAll(pd, ctx, []SubparserOp{plFun, pInner}, nil)
 	}
 
 	runTests(t, pOuter, []parseTestData{
@@ -326,15 +240,8 @@ func TestParseAll_Nested(t *testing.T) {
 func TestParseAny_NormalFunctionality(t *testing.T) {
 	plFlow := MakeParseLiteral("flow")
 	plNo := MakeParseLiteral("no")
-	p := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAny(
-			portOut,
-			[]SubparserOp{plFlow, plNo},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAny(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
 	}
 
 	runTests(t, p, []parseTestData{
@@ -370,27 +277,13 @@ func TestParseAny_NormalFunctionality(t *testing.T) {
 func TestParseAny_Nested(t *testing.T) {
 	plFlow := MakeParseLiteral("flow")
 	plNo := MakeParseLiteral("no")
-	pInner := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAny(
-			portOut,
-			[]SubparserOp{plFlow, plNo},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	pInner := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAny(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
 	}
 
 	plFun := MakeParseLiteral("fun")
-	pOuter := func(portOut func(interface{})) (portIn func(interface{})) {
-		portIn = ParseAny(
-			portOut,
-			[]SubparserOp{plFun, pInner},
-			nil,
-			getParseDataForTest,
-			setParseDataForTest,
-		)
-		return
+	pOuter := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAny(pd, ctx, []SubparserOp{plFun, pInner}, nil)
 	}
 
 	runTests(t, pOuter, []parseTestData{

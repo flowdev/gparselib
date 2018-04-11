@@ -71,26 +71,16 @@ func NewSourceData(name string, content string) SourceData {
 	return SourceData{name, content, 0, -1, 1}
 }
 
-type tempData struct {
-	pos        int
-	subResults []*ParseResult
-}
-
-func newTempData(pos, n int) *tempData {
-	return &tempData{pos, make([]*ParseResult, 0, n)}
-}
-
 // ParseData contains all data needed during parsing.
 type ParseData struct {
 	Source     SourceData
 	Result     *ParseResult
 	SubResults []*ParseResult
-	tmp        []*tempData
 }
 
 // NewParseData creates a new, completely initialized ParseData.
 func NewParseData(name string, content string) *ParseData {
-	return &ParseData{NewSourceData(name, content), nil, nil, make([]*tempData, 0, 128)}
+	return &ParseData{NewSourceData(name, content), nil, nil}
 }
 
 // ParseError holds information about a parser error.
