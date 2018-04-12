@@ -15,7 +15,7 @@ import (
 func ParseLiteral(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 	cfgLiteral string,
 ) (*ParseData, interface{}) {
 	cfgN := len(cfgLiteral)
@@ -31,7 +31,7 @@ func ParseLiteral(
 			"Literal '"+cfgLiteral+"' expected",
 			nil)
 	}
-	return handleSemantics(fillSemantics, pd, ctx)
+	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
 // This is needed for: ParseNatural
@@ -43,7 +43,7 @@ const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
 func ParseNatural(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 	cfgRadix int,
 ) (*ParseData, interface{}, error) {
 	if cfgRadix < 2 || cfgRadix > 36 {
@@ -81,7 +81,7 @@ func ParseNatural(
 	} else {
 		createUnmatchedResult(pd, 0, "Natural number expected", nil)
 	}
-	pd, ctx = handleSemantics(fillSemantics, pd, ctx)
+	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
 	return pd, ctx, nil
 }
 
@@ -89,7 +89,7 @@ func ParseNatural(
 func ParseEOF(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	pos := pd.Source.pos
 	n := len(pd.Source.content) - 1
@@ -105,7 +105,7 @@ func ParseEOF(
 	} else {
 		createMatchedResult(pd, 0)
 	}
-	return handleSemantics(fillSemantics, pd, ctx)
+	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
 // ParseSpace parses one or more space characters.
@@ -114,7 +114,7 @@ func ParseEOF(
 func ParseSpace(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 	cfgEOLOK bool,
 ) (*ParseData, interface{}) {
 	var n int
@@ -133,7 +133,7 @@ func ParseSpace(
 	} else {
 		createUnmatchedResult(pd, 0, "Expecting white space", nil)
 	}
-	return handleSemantics(fillSemantics, pd, ctx)
+	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
 // ParseRegexp parses text according to a predefined regular expression.
@@ -157,7 +157,7 @@ func NewParseRegexp(cfgRegexp string) (*ParseRegexp, error) {
 func (pr *ParseRegexp) In(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	re := (*regexp.Regexp)(pr)
 	pos := pd.Source.pos
@@ -175,7 +175,7 @@ func (pr *ParseRegexp) In(
 			nil,
 		)
 	}
-	return handleSemantics(fillSemantics, pd, ctx)
+	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
 // ParseLineComment parses a comment until the end of the line.
@@ -184,7 +184,7 @@ func (pr *ParseRegexp) In(
 func ParseLineComment(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 	cfgStart string,
 ) (*ParseData, interface{}, error) {
 	if cfgStart == "" {
@@ -211,7 +211,7 @@ func ParseLineComment(
 	} else {
 		createUnmatchedResult(pd, 0, "Expecting line comment", nil)
 	}
-	pd, ctx = handleSemantics(fillSemantics, pd, ctx)
+	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
 	return pd, ctx, nil
 }
 
@@ -223,7 +223,7 @@ func ParseLineComment(
 func ParseBlockComment(
 	pd *ParseData,
 	ctx interface{},
-	fillSemantics SemanticsOp,
+	pluginSemantics SemanticsOp,
 	cfgStart string,
 	cfgEnd string,
 ) (*ParseData, interface{}, error) {
@@ -307,6 +307,6 @@ func ParseBlockComment(
 			nil,
 		)
 	}
-	pd, ctx = handleSemantics(fillSemantics, pd, ctx)
+	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
 	return pd, ctx, nil
 }

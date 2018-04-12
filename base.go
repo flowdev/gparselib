@@ -112,10 +112,10 @@ func (e *ParseError) String() string {
 // SemanticsOp is a simple filter for parser and context data.
 type SemanticsOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
 
-// handleSemantics calls fillSemantics if given and no error was detected, and always clears any subresults.
-func handleSemantics(fillSemantics SemanticsOp, pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-	if fillSemantics != nil && pd.Result.ErrPos < 0 {
-		pd, ctx = fillSemantics(pd, ctx)
+// handleSemantics calls pluginSemantics if given and no error was detected, and always clears any subresults.
+func handleSemantics(pluginSemantics SemanticsOp, pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+	if pluginSemantics != nil && pd.Result.ErrPos < 0 {
+		pd, ctx = pluginSemantics(pd, ctx)
 	}
 	pd.SubResults = nil
 	return pd, ctx
