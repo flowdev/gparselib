@@ -37,22 +37,15 @@ func ParseMulti(
 	if len(subresults) >= cfgMin {
 		pd.Result = nil
 		createMatchedResult(pd, relPos)
-		parseMultiDefaultSemantics(pd, subresults, cfgMax <= 1)
+		saveAllValuesFeedback(pd, subresults)
 	} else {
-		subResult := pd.Result
+		subresult := pd.Result
 		pd.Result = nil
 		createUnmatchedResult(pd, relPos, fmt.Sprintf("At least %d matches expected but got only %d.", cfgMin, len(subresults)), nil)
-		pd.Result.Feedback = append(pd.Result.Feedback, subResult.Feedback...)
+		pd.Result.Feedback = append(pd.Result.Feedback, subresult.Feedback...)
 	}
 	pd.SubResults = subresults
 	return handleSemantics(pluginSemantics, pd, ctx)
-}
-func parseMultiDefaultSemantics(pd *ParseData, tmpSubresults []*ParseResult, singleResult bool) {
-	if singleResult {
-		saveSingleValueFeedback(pd, tmpSubresults)
-	} else {
-		saveAllValuesFeedback(pd, tmpSubresults)
-	}
 }
 
 // ParseMulti0 uses its subparser at least one time without upper bound.
@@ -86,7 +79,18 @@ func ParseOptional(
 	pluginSubparser SubparserOp,
 	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
-	return ParseMulti(pd, ctx, pluginSubparser, pluginSemantics, 0, 1)
+	orgPos := pd.Source.pos
+
+	pd, ctx = pluginSubparser(pd, ctx)
+
+	// if error: reset to ignore
+	if pd.Result.ErrPos >= 0 {
+		pd.Result.ErrPos = -1
+		pd.Result.Feedback = nil
+		pd.Source.pos = orgPos
+	}
+
+	return pd, ctx
 }
 
 // ParseAll calls multiple subparsers and all have to match for a successful result.
@@ -159,11 +163,4 @@ func saveAllValuesFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
 		pd.Result.Feedback = append(pd.Result.Feedback, subres.Feedback...)
 	}
 	pd.Result.Value = s
-}
-func saveSingleValueFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
-	if len(tmpSubresults) >= 1 {
-		subRes := tmpSubresults[0]
-		pd.Result.Value = subRes.Value
-		pd.Result.Feedback = append(pd.Result.Feedback, subRes.Feedback...)
-	}
 }
