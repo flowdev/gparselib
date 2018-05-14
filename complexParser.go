@@ -137,9 +137,6 @@ func ParseAny(
 	for _, subparser := range pluginSubparsers {
 		pd, ctx = subparser(pd, ctx)
 		if pd.Result.ErrPos < 0 {
-			relPos := pd.Source.pos - orgPos
-			pd.Source.pos = orgPos
-			createMatchedResult(pd, relPos)
 			return handleSemantics(pluginSemantics, pd, ctx)
 		}
 		lastPos = pd.Result.Pos
