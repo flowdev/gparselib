@@ -38,7 +38,8 @@ func (fi *FeedbackItem) String() string {
 	return msg + fi.Msg.String()
 }
 
-// ParseResult contains the result of parsing including semantic value and feedback.
+// ParseResult contains the result of parsing including semantic value and
+// feedback.
 type ParseResult struct {
 	Pos      int
 	Text     string
@@ -47,7 +48,8 @@ type ParseResult struct {
 	Feedback []*FeedbackItem
 }
 
-// HasError searches the feedback for errors and returns only true if it found one.
+// HasError searches the feedback for errors and returns only true if it found
+// one.
 func (pr *ParseResult) HasError() bool {
 	for _, fb := range pr.Feedback {
 		if fb.Kind == FeedbackError {
@@ -57,7 +59,19 @@ func (pr *ParseResult) HasError() bool {
 	return false
 }
 
-// SourceData contains the name of the source for parsing, its contents and unexported stuff.
+// AddError adds a new parse error to the result feedback.
+func (pd *ParseData) AddError(pos int, msg string, baseErr error) {
+	pd.Result.Feedback = append(
+		pd.Result.Feedback,
+		&FeedbackItem{
+			Kind: FeedbackError,
+			Msg:  NewParseError(pd, pos, msg, baseErr),
+		},
+	)
+}
+
+// SourceData contains the name of the source for parsing, its contents and
+// unexported stuff.
 type SourceData struct {
 	Name        string
 	content     string
@@ -69,6 +83,11 @@ type SourceData struct {
 // NewSourceData creates a new, completely initialized SourceData.
 func NewSourceData(name string, content string) SourceData {
 	return SourceData{name, content, 0, -1, 1}
+}
+
+// Where describes the given integer position in a human readable way.
+func (sd SourceData) Where(pos int) string {
+	return where(&sd, pos)
 }
 
 // ParseData contains all data needed during parsing.
@@ -92,8 +111,9 @@ type ParseError struct {
 
 // NewParseError creates a new, completely initialized ParseError.
 func NewParseError(pd *ParseData, pos int, msg string, baseErr error) *ParseError {
-	return &ParseError{where(&pd.Source, pos), msg, baseErr}
+	return &ParseError{pd.Source.Where(pos), msg, baseErr}
 }
+
 func (e *ParseError) Error() string {
 	msg := e.where + e.myErr
 	if e.baseErr != nil {

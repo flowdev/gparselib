@@ -26,7 +26,7 @@ func ParseMulti(
 
 	for i := 0; i < cfgMax && pd.Result == nil; i++ {
 		pd, ctx = pluginSubparser(pd, ctx)
-		if pd.Result.ErrPos < 0 {
+		if !pd.Result.HasError() {
 			subresults = append(subresults, pd.Result)
 			pd.Result = nil
 		}
@@ -41,7 +41,15 @@ func ParseMulti(
 	} else {
 		subresult := pd.Result
 		pd.Result = nil
-		createUnmatchedResult(pd, relPos, fmt.Sprintf("At least %d matches expected but got only %d.", cfgMin, len(subresults)), nil)
+		createUnmatchedResult(
+			pd, relPos,
+			fmt.Sprintf(
+				"At least %d matches expected but got only %d",
+				cfgMin,
+				len(subresults),
+			),
+			nil,
+		)
 		pd.Result.Feedback = append(pd.Result.Feedback, subresult.Feedback...)
 	}
 	pd.SubResults = subresults
@@ -84,7 +92,7 @@ func ParseOptional(
 	pd, ctx = pluginSubparser(pd, ctx)
 
 	// if error: reset to ignore
-	if pd.Result.ErrPos >= 0 {
+	if pd.Result.HasError() {
 		pd.Result.ErrPos = -1
 		pd.Result.Feedback = nil
 		pd.Source.pos = orgPos
@@ -105,7 +113,7 @@ func ParseAll(
 
 	for i, subparser := range pluginSubparsers {
 		pd, ctx = subparser(pd, ctx)
-		if pd.Result.ErrPos >= 0 {
+		if pd.Result.HasError() {
 			pd.Source.pos = orgPos
 			pd.Result.Pos = orgPos // make result 'our result'
 			return pd, ctx
@@ -136,7 +144,7 @@ func ParseAny(
 
 	for _, subparser := range pluginSubparsers {
 		pd, ctx = subparser(pd, ctx)
-		if pd.Result.ErrPos < 0 {
+		if !pd.Result.HasError() {
 			return handleSemantics(pluginSemantics, pd, ctx)
 		}
 		lastPos = pd.Result.Pos
