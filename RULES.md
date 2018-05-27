@@ -62,16 +62,14 @@ Again such components are quite rare but very useful when needed.
 ## Rules For Stateful Components
 If we need to keep state between instances of handling data of input ports, well we need a data type to hold it.
 This is exactly idiomatic Go. There are no special rules about the data type to use.
-The only difference to more traditional less modular coding styles is that the components usually resemble verbs and not nouns.
+The data type that holds the state should be named like the component as a noun.
 
-The data type that holds the state should be named like the component.
-And the methods that can be called on the data type should be named like the input ports.
+For the methods that can be called on the data type exactly the same rules apply as for the stateless components.
 ```go
-type addCustomerFromDB sql.Conn
+type customerFromDBAdder sql.Conn
 
-func (c addCustomerFromDB) In(o *Order) (*Order, error)
+func (c customerFromDBAdder) addCustomerFromDB(o *Order) (*Order, error)
 ```
-The rules for output ports are the same as for stateless components.
 
 ## Plugins As a Compromise
 Sometimes we want to split up a complex component or pull out parts of it for better testability.
