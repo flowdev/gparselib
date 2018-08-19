@@ -147,10 +147,51 @@ func ParseAny(
 		if !pd.Result.HasError() {
 			return handleSemantics(pluginSemantics, pd, ctx)
 		}
-		lastPos = pd.Result.Pos
+		lastPos = max(lastPos, pd.Result.Pos)
 		pd.Source.pos = orgPos
 		allFeedback = append(allFeedback, pd.Result.Feedback...)
 		pd.Result = nil
+	}
+
+	relPos := lastPos - orgPos
+	pd.Source.pos = orgPos
+	pd.Result = nil
+	createUnmatchedResult(pd, relPos, fmt.Sprintf("Any subparser should match. But all %d subparsers failed", len(pluginSubparsers)), nil)
+	pd.Result.Feedback = append(pd.Result.Feedback, allFeedback...)
+	return pd, ctx
+}
+
+// ParseBest calls all subparsers and chooses the one with the longest match.
+// The result is only unsuccessful if no subparser matches.
+func ParseBest(
+	pd *ParseData,
+	ctx interface{},
+	pluginSubparsers []SubparserOp,
+	pluginSemantics SemanticsOp,
+) (*ParseData, interface{}) {
+	orgPos := pd.Source.pos
+	allFeedback := make([]*FeedbackItem, 0, len(pluginSubparsers))
+	lastPos := 0
+	bestNewSourcePos := 0
+	var bestResult *ParseResult
+
+	for _, subparser := range pluginSubparsers {
+		pd, ctx = subparser(pd, ctx)
+		if !pd.Result.HasError() {
+			if pd.Source.pos > bestNewSourcePos {
+				bestNewSourcePos = pd.Source.pos
+				bestResult = pd.Result
+			}
+		}
+		lastPos = max(lastPos, pd.Result.Pos)
+		pd.Source.pos = orgPos
+		allFeedback = append(allFeedback, pd.Result.Feedback...)
+		pd.Result = nil
+	}
+	if bestResult != nil {
+		pd.Source.pos = bestNewSourcePos
+		pd.Result = bestResult
+		return handleSemantics(pluginSemantics, pd, ctx)
 	}
 
 	relPos := lastPos - orgPos
