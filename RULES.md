@@ -16,7 +16,8 @@ func addPersonalData(p *Person, name string, age int) *Person
 This means that there are already many valid components out there and many libraries can be used without any wrappers.
 
 ### Special Case Error Output Port
-If the last return value is of type `error` it is forms implicitly an extra port `err`.
+If the last return value is of type `error` it is implicitly an extra port `err`.
+It is valid but not necessary to name this value `err` or `portErr`.
 The value for this port has to be handled first and the other values are only valid if the `error` value is `nil`.
 ```go
 func addCustomerFromDB(o *Order) (*Order, error)
@@ -31,7 +32,7 @@ This is achived with a simple naming convention:
 
 Each return value has a name that starts with `port` and is followd with an upper case letter and optionally more characters.
 ```go
-func protectFromFraught(o *Order) (portOut *Order, portFraught *Order, portErr error)
+func protectFromFraught(o *Order) (portOut *Order, portFraught *Order, err error)
 ```
 The only hard requirement here is that the return value for each must be `nil` if the port isn't used.
 The `error` type is again fulfilling this.
@@ -44,7 +45,7 @@ func protectFromFraught(
 ) (portOut *Order, portFraught *struct{o *Order, c *Customer}, portErr error)
 ```
 Components with multiple output ports don't look like idiomatic Go code and can't be found like this in libraries on GitHub.
-Fortunately such components are quite rare but very useful when needed.
+Fortunately such components are quite rare. But they are very useful when needed.
 
 ### Multiple Input Ports
 In case of multiple input ports we need to be able to distinguish them easily.
@@ -63,18 +64,19 @@ Again such components are quite rare but very useful when needed.
 If we need to keep state between instances of handling data of input ports, well we need a data type to hold it.
 This is exactly idiomatic Go. There are no special rules about the data type to use.
 The data type that holds the state should be named like the component as a noun.
+If the component has got only one input port (method), it is idiomatic to name it like that method with `er` added.
 
 For the methods that can be called on the data type exactly the same rules apply as for the stateless components.
 ```go
-type customerFromDBAdder sql.Conn
+type addCustomerFromDBer sql.Conn
 
-func (c customerFromDBAdder) addCustomerFromDB(o *Order) (*Order, error)
+func (c addCustomerFromDBer) addCustomerFromDB(o *Order) (*Order, error)
 ```
 
 ## Plugins As a Compromise
 Sometimes we want to split up a complex component or pull out parts of it for better testability.
 Turning all parts into components and making all the connections explicit can become unwieldy because it would distract too much from the big picture.
-The general concept of how the flow would get lost because of too many less important connections.
+The general concept of how the flow works would get lost because of too many less important connections.
 
 For situations like these plugins can be a nice solution.
 Plugins are normal components. So they can be stateless or stateful as necessary.

@@ -156,7 +156,14 @@ func ParseAny(
 	relPos := lastPos - orgPos
 	pd.Source.pos = orgPos
 	pd.Result = nil
-	createUnmatchedResult(pd, relPos, fmt.Sprintf("Any subparser should match. But all %d subparsers failed", len(pluginSubparsers)), nil)
+	createUnmatchedResult(
+		pd, relPos,
+		fmt.Sprintf(
+			"Any subparser should match. But all %d subparsers failed",
+			len(pluginSubparsers),
+		),
+		nil,
+	)
 	pd.Result.Feedback = append(pd.Result.Feedback, allFeedback...)
 	return pd, ctx
 }
@@ -197,7 +204,14 @@ func ParseBest(
 	relPos := lastPos - orgPos
 	pd.Source.pos = orgPos
 	pd.Result = nil
-	createUnmatchedResult(pd, relPos, fmt.Sprintf("Any subparser should match. But all %d subparsers failed", len(pluginSubparsers)), nil)
+	createUnmatchedResult(
+		pd, relPos,
+		fmt.Sprintf(
+			"Best subparser should match. But all %d subparsers failed",
+			len(pluginSubparsers),
+		),
+		nil,
+	)
 	pd.Result.Feedback = append(pd.Result.Feedback, allFeedback...)
 	return pd, ctx
 }

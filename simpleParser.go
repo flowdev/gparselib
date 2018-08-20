@@ -136,25 +136,25 @@ func ParseSpace(
 	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
-// ParseRegexp parses text according to a predefined regular expression.
+// ParseRegexper parses text according to a predefined regular expression.
 // The regular expression (e.g.: `^[a-z]+`) has to be configured.
 // If the regular expression doesn't start with a `^` it will be added
 // automatically.
 // If the regular expression can't be compiled an error is returned.
-type ParseRegexp regexp.Regexp
+type ParseRegexper regexp.Regexp
 
-// NewParseRegexp creates a new parser for the given regular expression.
+// NewParseRegexper creates a new parser for the given regular expression.
 // If the regular expression is invalid an error is returned.
-func NewParseRegexp(cfgRegexp string) (*ParseRegexp, error) {
+func NewParseRegexper(cfgRegexp string) (*ParseRegexper, error) {
 	if cfgRegexp[0] != '^' {
 		cfgRegexp = "^" + cfgRegexp
 	}
 	re, err := regexp.Compile(cfgRegexp)
-	return (*ParseRegexp)(re), err
+	return (*ParseRegexper)(re), err
 }
 
-// In is the input port of the ParseRegexp operation.
-func (pr *ParseRegexp) In(
+// ParseRegexp is the input port of the ParseRegexper operation.
+func (pr *ParseRegexper) ParseRegexp(
 	pd *ParseData,
 	ctx interface{},
 	pluginSemantics SemanticsOp,

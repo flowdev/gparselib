@@ -111,7 +111,7 @@ type ParseError struct {
 
 // NewParseError creates a new, completely initialized ParseError.
 func NewParseError(pd *ParseData, pos int, msg string, baseErr error) *ParseError {
-	return &ParseError{pd.Source.Where(pos), msg, baseErr}
+	return &ParseError{where: pd.Source.Where(pos), myErr: msg, baseErr: baseErr}
 }
 
 func (e *ParseError) Error() string {
@@ -158,7 +158,13 @@ func createUnmatchedResult(pd *ParseData, i int, msg string, baseErr error) {
 
 // AddError adds an error feedback to the result part of the given ParseData.
 func AddError(errPos int, msg string, baseErr error, pd *ParseData) {
-	pd.Result.Feedback = append(pd.Result.Feedback, &FeedbackItem{Kind: FeedbackError, Msg: NewParseError(pd, errPos, msg, baseErr)})
+	pd.Result.Feedback = append(
+		pd.Result.Feedback,
+		&FeedbackItem{
+			Kind: FeedbackError,
+			Msg:  NewParseError(pd, errPos, msg, baseErr),
+		},
+	)
 }
 
 func where(src *SourceData, pos int) string {
