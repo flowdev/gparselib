@@ -64,7 +64,6 @@ Again such components are quite rare but very useful when needed.
 If we need to keep state between instances of handling data of input ports, well we need a data type to hold it.
 This is exactly idiomatic Go. There are no special rules about the data type to use.
 The data type that holds the state should be named like the component as a noun.
-If the component has got only one input port (method), it is idiomatic to name it like that method with `er` added.
 
 For the methods that can be called on the data type exactly the same rules apply as for the stateless components.
 ```go
