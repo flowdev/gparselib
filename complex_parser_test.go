@@ -305,3 +305,67 @@ func TestParseAny_Nested(t *testing.T) {
 		},
 	})
 }
+
+func TestParseBest_NormalFunctionality(t *testing.T) {
+	plFlo := MakeParseLiteral("flo")
+	plFlow := MakeParseLiteral("flow")
+	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseBest(pd, ctx, []SubparserOp{plFlo, plFlow}, nil)
+	}
+
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 3,
+		}, {
+			givenParseData:   newData("no match", 0, " flow 3"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 3,
+		}, {
+			givenParseData:   newData("match flo", 2, "12floabc"),
+			expectedResult:   newResult(2, "flo", nil, -1),
+			expectedSrcPos:   5,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match flow", 0, "flowabc"),
+			expectedResult:   newResult(0, "flow", nil, -1),
+			expectedSrcPos:   4,
+			expectedErrCount: 0,
+		},
+	})
+}
+
+func TestParseBest_Nested(t *testing.T) {
+	plFlo := MakeParseLiteral("flo")
+	plFlow := MakeParseLiteral("flow")
+	pInner := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseBest(pd, ctx, []SubparserOp{plFlo, plFlow}, nil)
+	}
+
+	plFl := MakeParseLiteral("fl")
+	pOuter := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseBest(pd, ctx, []SubparserOp{plFl, pInner}, nil)
+	}
+
+	runTests(t, pOuter, []parseTestData{
+		{
+			givenParseData:   newData("match flow", 3, "123flowabc"),
+			expectedResult:   newResult(3, "flow", nil, -1),
+			expectedSrcPos:   7,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match flo", 3, "123floabc"),
+			expectedResult:   newResult(3, "flo", nil, -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("match fl", 3, "123flabc"),
+			expectedResult:   newResult(3, "fl", nil, -1),
+			expectedSrcPos:   5,
+			expectedErrCount: 0,
+		},
+	})
+}
