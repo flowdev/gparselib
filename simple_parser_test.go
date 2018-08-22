@@ -201,11 +201,11 @@ func TestParseSpace(t *testing.T) {
 
 func TestParseRegexp(t *testing.T) {
 	pWiV := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		p, _ := NewParseRegexper(`^[a]+`)
+		p, _ := NewRegexpParser(`^[a]+`)
 		return p.ParseRegexp(pd, ctx, nil)
 	}
 	pWoV := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		p, _ := NewParseRegexper(`[a]+`)
+		p, _ := NewRegexpParser(`[a]+`)
 		return p.ParseRegexp(pd, ctx, nil)
 	}
 
@@ -266,7 +266,7 @@ func TestParseRegexp(t *testing.T) {
 		},
 	})
 
-	_, err := NewParseRegexper(`[a`)
+	_, err := NewRegexpParser(`[a`)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
