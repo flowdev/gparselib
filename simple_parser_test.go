@@ -107,6 +107,11 @@ func TestParseEOF(t *testing.T) {
 			expectedSrcPos:   2,
 			expectedErrCount: 1,
 		}, {
+			givenParseData:   newData("no match 2", 4, "flow1"),
+			expectedResult:   newResult(4, "", nil, 4),
+			expectedSrcPos:   4,
+			expectedErrCount: 1,
+		}, {
 			givenParseData:   newData("empty", 0, ""),
 			expectedResult:   newResult(0, "", nil, -1),
 			expectedSrcPos:   0,

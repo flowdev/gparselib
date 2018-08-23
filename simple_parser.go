@@ -92,7 +92,7 @@ func ParseEOF(
 	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	pos := pd.Source.pos
-	n := len(pd.Source.content) - 1
+	n := len(pd.Source.content)
 
 	if n > pos {
 		createUnmatchedResult(pd, 0,
