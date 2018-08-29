@@ -70,6 +70,17 @@ func (pd *ParseData) AddError(pos int, msg string, baseErr error) {
 	)
 }
 
+// ResetSourcePos resets the source position to an old value.
+// This is usually needed when semantic errors occur.
+// If the given pos is negative, the position of the current result is used.
+func (pd *ParseData) ResetSourcePos(pos int) {
+	if pos < 0 {
+		pd.Source.pos = pd.Result.Pos
+	} else {
+		pd.Source.pos = pos
+	}
+}
+
 // SourceData contains the name of the source for parsing, its contents and
 // unexported stuff.
 type SourceData struct {
