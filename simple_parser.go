@@ -13,8 +13,7 @@ import (
 // ParseLiteral parses a literal value at the current position of the parser.
 // The configuration has to be the literal string we expect.
 func ParseLiteral(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 	cfgLiteral string,
 ) (*ParseData, interface{}) {
@@ -35,10 +34,7 @@ func ParseLiteral(
 }
 
 // NewParseLiteralPlugin creates a plugin sporting a literal parser.
-func NewParseLiteralPlugin(
-	pluginSemantics SemanticsOp,
-	cfgLiteral string,
-) SubparserOp {
+func NewParseLiteralPlugin(pluginSemantics SemanticsOp, cfgLiteral string) SubparserOp {
 	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
 		return ParseLiteral(pd, ctx, pluginSemantics, cfgLiteral)
 	}
@@ -51,8 +47,7 @@ const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
 // The configuration has to be the radix of accepted numbers (e.g.: 10).
 // If the radix is smaller than 2 or larger than 36 an error is returned.
 func ParseNatural(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 	cfgRadix int,
 ) (*ParseData, interface{}, error) {
@@ -96,10 +91,7 @@ func ParseNatural(
 }
 
 // NewParseNaturalPlugin creates a plugin sporting a number parser.
-func NewParseNaturalPlugin(
-	pluginSemantics SemanticsOp,
-	cfgRadix int,
-) (SubparserOp, error) {
+func NewParseNaturalPlugin(pluginSemantics SemanticsOp, cfgRadix int) (SubparserOp, error) {
 	pd := &ParseData{Source: SourceData{}}
 	_, _, err := ParseNatural(pd, nil, nil, cfgRadix)
 	if err != nil {
@@ -114,8 +106,7 @@ func NewParseNaturalPlugin(
 
 // ParseEOF only matches at the end of the input.
 func ParseEOF(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	pos := pd.Source.pos
@@ -146,8 +137,7 @@ func NewParseEOFPlugin(pluginSemantics SemanticsOp) SubparserOp {
 // Space is defined by unicode.IsSpace().
 // It can be configured wether EOL ('\n') is to be interpreted as space or not.
 func ParseSpace(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 	cfgEOLOK bool,
 ) (*ParseData, interface{}) {
@@ -171,10 +161,7 @@ func ParseSpace(
 }
 
 // NewParseSpacePlugin creates a plugin sporting a space parser.
-func NewParseSpacePlugin(
-	pluginSemantics SemanticsOp,
-	cfgEOLOK bool,
-) SubparserOp {
+func NewParseSpacePlugin(pluginSemantics SemanticsOp, cfgEOLOK bool) SubparserOp {
 	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
 		return ParseSpace(pd, ctx, pluginSemantics, cfgEOLOK)
 	}
@@ -199,8 +186,7 @@ func NewRegexpParser(cfgRegexp string) (*RegexpParser, error) {
 
 // ParseRegexp is the input port of the RegexpParser operation.
 func (pr *RegexpParser) ParseRegexp(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	re := (*regexp.Regexp)(pr)
@@ -241,8 +227,7 @@ func NewParseRegexpPlugin(
 // The string that starts the comment (e.g.: `//`) has to be configured.
 // If the start of the comment is empty an error is returned.
 func ParseLineComment(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 	cfgStart string,
 ) (*ParseData, interface{}, error) {
@@ -297,8 +282,7 @@ func NewParseLineCommentPlugin(
 // A comment start or end inside a string literal (', " and `) is ignored.
 // If the start or end of the comment is empty an error is returned.
 func ParseBlockComment(
-	pd *ParseData,
-	ctx interface{},
+	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 	cfgStart, cfgEnd string,
 ) (*ParseData, interface{}, error) {
