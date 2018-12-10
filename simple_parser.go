@@ -34,6 +34,16 @@ func ParseLiteral(
 	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
+// NewParseLiteralPlugin creates a plugin sporting a literal parser.
+func NewParseLiteralPlugin(
+	pluginSemantics SemanticsOp,
+	cfgLiteral string,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseLiteral(pd, ctx, pluginSemantics, cfgLiteral)
+	}
+}
+
 // This is needed for: ParseNatural
 const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -85,6 +95,23 @@ func ParseNatural(
 	return pd, ctx, nil
 }
 
+// NewParseNaturalPlugin creates a plugin sporting a number parser.
+func NewParseNaturalPlugin(
+	pluginSemantics SemanticsOp,
+	cfgRadix int,
+) (SubparserOp, error) {
+	pd := &ParseData{Source: SourceData{}}
+	_, _, err := ParseNatural(pd, nil, nil, cfgRadix)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseNatural(pd, ctx, pluginSemantics, cfgRadix)
+		return pd, ctx
+	}, nil
+}
+
 // ParseEOF only matches at the end of the input.
 func ParseEOF(
 	pd *ParseData,
@@ -106,6 +133,13 @@ func ParseEOF(
 		createMatchedResult(pd, 0)
 	}
 	return handleSemantics(pluginSemantics, pd, ctx)
+}
+
+// NewParseEOFPlugin creates a plugin sporting an EOF parser.
+func NewParseEOFPlugin(pluginSemantics SemanticsOp) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseEOF(pd, ctx, pluginSemantics)
+	}
 }
 
 // ParseSpace parses one or more space characters.
@@ -134,6 +168,16 @@ func ParseSpace(
 		createUnmatchedResult(pd, 0, "Expecting white space", nil)
 	}
 	return handleSemantics(pluginSemantics, pd, ctx)
+}
+
+// NewParseSpacePlugin creates a plugin sporting a space parser.
+func NewParseSpacePlugin(
+	pluginSemantics SemanticsOp,
+	cfgEOLOK bool,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseSpace(pd, ctx, pluginSemantics, cfgEOLOK)
+	}
 }
 
 // RegexpParser parses text according to a predefined regular expression.
@@ -178,6 +222,21 @@ func (pr *RegexpParser) ParseRegexp(
 	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
+// NewParseRegexpPlugin creates a plugin sporting a regular expression parser.
+func NewParseRegexpPlugin(
+	pluginSemantics SemanticsOp,
+	cfgRegexp string,
+) (SubparserOp, error) {
+	pr, err := NewRegexpParser(cfgRegexp)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return pr.ParseRegexp(pd, ctx, pluginSemantics)
+	}, nil
+}
+
 // ParseLineComment parses a comment until the end of the line.
 // The string that starts the comment (e.g.: `//`) has to be configured.
 // If the start of the comment is empty an error is returned.
@@ -215,6 +274,23 @@ func ParseLineComment(
 	return pd, ctx, nil
 }
 
+// NewParseLineCommentPlugin creates a plugin sporting a number parser.
+func NewParseLineCommentPlugin(
+	pluginSemantics SemanticsOp,
+	cfgStart string,
+) (SubparserOp, error) {
+	pd := &ParseData{Source: SourceData{}}
+	_, _, err := ParseLineComment(pd, nil, nil, cfgStart)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseLineComment(pd, ctx, pluginSemantics, cfgStart)
+		return pd, ctx
+	}, nil
+}
+
 // ParseBlockComment parses a comment until the end of the line.
 // The strings that start and end the comment (e.g.: `/*`, `*/`)
 // have to be configured.
@@ -224,8 +300,7 @@ func ParseBlockComment(
 	pd *ParseData,
 	ctx interface{},
 	pluginSemantics SemanticsOp,
-	cfgStart string,
-	cfgEnd string,
+	cfgStart, cfgEnd string,
 ) (*ParseData, interface{}, error) {
 	if cfgStart == "" {
 		return nil, nil,
@@ -309,4 +384,21 @@ func ParseBlockComment(
 	}
 	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
 	return pd, ctx, nil
+}
+
+// NewParseBlockCommentPlugin creates a plugin sporting a number parser.
+func NewParseBlockCommentPlugin(
+	pluginSemantics SemanticsOp,
+	cfgStart, cfgEnd string,
+) (SubparserOp, error) {
+	pd := &ParseData{Source: SourceData{}}
+	_, _, err := ParseBlockComment(pd, nil, nil, cfgStart, cfgEnd)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseBlockComment(pd, ctx, pluginSemantics, cfgStart, cfgEnd)
+		return pd, ctx
+	}, nil
 }

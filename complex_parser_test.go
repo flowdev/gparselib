@@ -4,16 +4,8 @@ import (
 	"testing"
 )
 
-func MakeParseLiteral(literal string) SubparserOp {
-	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseLiteral(pd, ctx, nil, literal)
-	}
-}
-
 func TestParseOptional(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseOptional(pd, ctx, MakeParseLiteral("flow"), nil)
-	}
+	p := NewParseOptionalPlugin(NewParseLiteralPlugin(nil, "flow"), nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -36,9 +28,7 @@ func TestParseOptional(t *testing.T) {
 }
 
 func TestParseMulti0(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseMulti0(pd, ctx, MakeParseLiteral("flow"), nil)
-	}
+	p := NewParseMulti0Plugin(NewParseLiteralPlugin(nil, "flow"), nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -61,9 +51,7 @@ func TestParseMulti0(t *testing.T) {
 }
 
 func TestParseMulti1(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseMulti1(pd, ctx, MakeParseLiteral("flow"), nil)
-	}
+	p := NewParseMulti1Plugin(NewParseLiteralPlugin(nil, "flow"), nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -86,9 +74,7 @@ func TestParseMulti1(t *testing.T) {
 }
 
 func TestParseMulti(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseMulti(pd, ctx, MakeParseLiteral("flow"), nil, 2, 3)
-	}
+	p := NewParseMultiPlugin(NewParseLiteralPlugin(nil, "flow"), nil, 2, 3)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -116,12 +102,8 @@ func TestParseMulti(t *testing.T) {
 }
 
 func TestParseMultiNested(t *testing.T) {
-	pm2to3 := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseMulti(pd, ctx, MakeParseLiteral("flow"), nil, 2, 3)
-	}
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseMulti1(pd, ctx, pm2to3, nil)
-	}
+	pm2to3 := NewParseMultiPlugin(NewParseLiteralPlugin(nil, "flow"), nil, 2, 3)
+	p := NewParseMulti1Plugin(pm2to3, nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -145,11 +127,9 @@ func TestParseMultiNested(t *testing.T) {
 }
 
 func TestParseAll_NormalFunctionality(t *testing.T) {
-	plFlow := MakeParseLiteral("flow")
-	plNo := MakeParseLiteral("no")
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAll(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
-	}
+	plFlow := NewParseLiteralPlugin(nil, "flow")
+	plNo := NewParseLiteralPlugin(nil, "no")
+	p := NewParseAllPlugin([]SubparserOp{plFlow, plNo}, nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -182,19 +162,16 @@ func TestParseAll_NormalFunctionality(t *testing.T) {
 }
 
 func TestParseAll_ManySubs(t *testing.T) {
-	pl1 := MakeParseLiteral("1")
-	pl2 := MakeParseLiteral("2")
-	pl3 := MakeParseLiteral("3")
-	pl4 := MakeParseLiteral("4")
-	pl5 := MakeParseLiteral("5")
-	pl6 := MakeParseLiteral("6")
-	pl7 := MakeParseLiteral("7")
-	pl8 := MakeParseLiteral("8")
-	pl9 := MakeParseLiteral("9")
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAll(pd, ctx,
-			[]SubparserOp{pl1, pl2, pl3, pl4, pl5, pl6, pl7, pl8, pl9}, nil)
-	}
+	pl1 := NewParseLiteralPlugin(nil, "1")
+	pl2 := NewParseLiteralPlugin(nil, "2")
+	pl3 := NewParseLiteralPlugin(nil, "3")
+	pl4 := NewParseLiteralPlugin(nil, "4")
+	pl5 := NewParseLiteralPlugin(nil, "5")
+	pl6 := NewParseLiteralPlugin(nil, "6")
+	pl7 := NewParseLiteralPlugin(nil, "7")
+	pl8 := NewParseLiteralPlugin(nil, "8")
+	pl9 := NewParseLiteralPlugin(nil, "9")
+	p := NewParseAllPlugin([]SubparserOp{pl1, pl2, pl3, pl4, pl5, pl6, pl7, pl8, pl9}, nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -212,15 +189,12 @@ func TestParseAll_ManySubs(t *testing.T) {
 }
 
 func TestParseAll_Nested(t *testing.T) {
-	plFlow := MakeParseLiteral("flow")
-	plNo := MakeParseLiteral("no")
-	pInner := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAll(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
-	}
-	plFun := MakeParseLiteral("fun")
-	pOuter := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAll(pd, ctx, []SubparserOp{plFun, pInner}, nil)
-	}
+	plFlow := NewParseLiteralPlugin(nil, "flow")
+	plNo := NewParseLiteralPlugin(nil, "no")
+	pInner := NewParseAllPlugin([]SubparserOp{plFlow, plNo}, nil)
+
+	plFun := NewParseLiteralPlugin(nil, "fun")
+	pOuter := NewParseAllPlugin([]SubparserOp{plFun, pInner}, nil)
 
 	runTests(t, pOuter, []parseTestData{
 		{
@@ -238,11 +212,9 @@ func TestParseAll_Nested(t *testing.T) {
 }
 
 func TestParseAny_NormalFunctionality(t *testing.T) {
-	plFlow := MakeParseLiteral("flow")
-	plNo := MakeParseLiteral("no")
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAny(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
-	}
+	plFlow := NewParseLiteralPlugin(nil, "flow")
+	plNo := NewParseLiteralPlugin(nil, "no")
+	p := NewParseAnyPlugin([]SubparserOp{plFlow, plNo}, nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -275,16 +247,12 @@ func TestParseAny_NormalFunctionality(t *testing.T) {
 }
 
 func TestParseAny_Nested(t *testing.T) {
-	plFlow := MakeParseLiteral("flow")
-	plNo := MakeParseLiteral("no")
-	pInner := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAny(pd, ctx, []SubparserOp{plFlow, plNo}, nil)
-	}
+	plFlow := NewParseLiteralPlugin(nil, "flow")
+	plNo := NewParseLiteralPlugin(nil, "no")
+	pInner := NewParseAnyPlugin([]SubparserOp{plFlow, plNo}, nil)
 
-	plFun := MakeParseLiteral("fun")
-	pOuter := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseAny(pd, ctx, []SubparserOp{plFun, pInner}, nil)
-	}
+	plFun := NewParseLiteralPlugin(nil, "fun")
+	pOuter := NewParseAnyPlugin([]SubparserOp{plFun, pInner}, nil)
 
 	runTests(t, pOuter, []parseTestData{
 		{
@@ -307,11 +275,9 @@ func TestParseAny_Nested(t *testing.T) {
 }
 
 func TestParseBest_NormalFunctionality(t *testing.T) {
-	plFlo := MakeParseLiteral("flo")
-	plFlow := MakeParseLiteral("flow")
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseBest(pd, ctx, []SubparserOp{plFlo, plFlow}, nil)
-	}
+	plFlo := NewParseLiteralPlugin(nil, "flo")
+	plFlow := NewParseLiteralPlugin(nil, "flow")
+	p := NewParseBestPlugin([]SubparserOp{plFlo, plFlow}, nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -339,16 +305,12 @@ func TestParseBest_NormalFunctionality(t *testing.T) {
 }
 
 func TestParseBest_Nested(t *testing.T) {
-	plFlo := MakeParseLiteral("flo")
-	plFlow := MakeParseLiteral("flow")
-	pInner := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseBest(pd, ctx, []SubparserOp{plFlo, plFlow}, nil)
-	}
+	plFlo := NewParseLiteralPlugin(nil, "flo")
+	plFlow := NewParseLiteralPlugin(nil, "flow")
+	pInner := NewParseBestPlugin([]SubparserOp{plFlo, plFlow}, nil)
 
-	plFl := MakeParseLiteral("fl")
-	pOuter := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseBest(pd, ctx, []SubparserOp{plFl, pInner}, nil)
-	}
+	plFl := NewParseLiteralPlugin(nil, "fl")
+	pOuter := NewParseBestPlugin([]SubparserOp{plFl, pInner}, nil)
 
 	runTests(t, pOuter, []parseTestData{
 		{

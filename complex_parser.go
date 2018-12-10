@@ -5,10 +5,6 @@ import (
 	"math"
 )
 
-// SubparserOp is a simple filter to the outside and gets the same data as the
-// parent parser.
-type SubparserOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
-
 // ParseMulti uses a subparser multiple times.
 // The minimum times the subparser has to match and the maximum times the
 // subparser can match have to be configured.
@@ -17,8 +13,7 @@ func ParseMulti(
 	ctx interface{},
 	pluginSubparser SubparserOp,
 	pluginSemantics SemanticsOp,
-	cfgMin int,
-	cfgMax int,
+	cfgMin, cfgMax int,
 ) (*ParseData, interface{}) {
 	orgPos := pd.Source.pos
 	relPos := 0
@@ -56,6 +51,18 @@ func ParseMulti(
 	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
+// NewParseMultiPlugin creates a plugin sporting a parser calling a subparser
+// multiple times.
+func NewParseMultiPlugin(
+	pluginSubparser SubparserOp,
+	pluginSemantics SemanticsOp,
+	cfgMin, cfgMax int,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti(pd, ctx, pluginSubparser, pluginSemantics, cfgMin, cfgMax)
+	}
+}
+
 // ParseMulti0 uses its subparser at least one time without upper bound.
 // But the result is still positive even if the subparser didn't match a single
 // time.
@@ -68,6 +75,17 @@ func ParseMulti0(
 	return ParseMulti(pd, ctx, pluginSubparser, pluginSemantics, 0, math.MaxInt32)
 }
 
+// NewParseMulti0Plugin creates a plugin sporting a parser calling a subparser
+// multiple times.
+func NewParseMulti0Plugin(
+	pluginSubparser SubparserOp,
+	pluginSemantics SemanticsOp,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti0(pd, ctx, pluginSubparser, pluginSemantics)
+	}
+}
+
 // ParseMulti1 uses its subparser at least one time without upper bound.
 // The result is positive as long as the subparser matches at least one time.
 func ParseMulti1(
@@ -77,6 +95,17 @@ func ParseMulti1(
 	pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	return ParseMulti(pd, ctx, pluginSubparser, pluginSemantics, 1, math.MaxInt32)
+}
+
+// NewParseMulti1Plugin creates a plugin sporting a parser calling a subparser
+// at least one time.
+func NewParseMulti1Plugin(
+	pluginSubparser SubparserOp,
+	pluginSemantics SemanticsOp,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseMulti1(pd, ctx, pluginSubparser, pluginSemantics)
+	}
 }
 
 // ParseOptional uses its subparser exaclty one time.
@@ -99,6 +128,17 @@ func ParseOptional(
 	}
 
 	return pd, ctx
+}
+
+// NewParseOptionalPlugin creates a plugin sporting a parser calling a subparser
+// once and ignoring errors in it.
+func NewParseOptionalPlugin(
+	pluginSubparser SubparserOp,
+	pluginSemantics SemanticsOp,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseOptional(pd, ctx, pluginSubparser, pluginSemantics)
+	}
 }
 
 // ParseAll calls multiple subparsers and all have to match for a successful result.
@@ -128,6 +168,16 @@ func ParseAll(
 	saveAllValuesFeedback(pd, subresults)
 	pd.SubResults = subresults
 	return handleSemantics(pluginSemantics, pd, ctx)
+}
+
+// NewParseAllPlugin creates a plugin sporting a parser calling all subparsers.
+func NewParseAllPlugin(
+	pluginSubparsers []SubparserOp,
+	pluginSemantics SemanticsOp,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAll(pd, ctx, pluginSubparsers, pluginSemantics)
+	}
 }
 
 // ParseAny calls multiple subparsers until one matches.
@@ -166,6 +216,17 @@ func ParseAny(
 	)
 	pd.Result.Feedback = append(pd.Result.Feedback, allFeedback...)
 	return pd, ctx
+}
+
+// NewParseAnyPlugin creates a plugin sporting a parser calling any successful
+// subparser.
+func NewParseAnyPlugin(
+	pluginSubparsers []SubparserOp,
+	pluginSemantics SemanticsOp,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseAny(pd, ctx, pluginSubparsers, pluginSemantics)
+	}
 }
 
 // ParseBest calls all subparsers and chooses the one with the longest match.
@@ -214,6 +275,17 @@ func ParseBest(
 	)
 	pd.Result.Feedback = append(pd.Result.Feedback, allFeedback...)
 	return pd, ctx
+}
+
+// NewParseBestPlugin creates a plugin sporting a parser calling the best
+// successful subparser.
+func NewParseBestPlugin(
+	pluginSubparsers []SubparserOp,
+	pluginSemantics SemanticsOp,
+) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseBest(pd, ctx, pluginSubparsers, pluginSemantics)
+	}
 }
 
 func saveAllValuesFeedback(pd *ParseData, tmpSubresults []*ParseResult) {

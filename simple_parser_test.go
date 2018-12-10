@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// testParseOp is the interface of all parsers to be tested.
-type testParseOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
-
 type parseTestData struct {
 	givenParseData   *ParseData
 	expectedResult   *ParseResult
@@ -16,9 +13,7 @@ type parseTestData struct {
 }
 
 func TestParseLiteral(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseLiteral(pd, ctx, nil, "func")
-	}
+	p := NewParseLiteralPlugin(nil, "func")
 
 	runTests(t, p, []parseTestData{
 		{
@@ -51,10 +46,7 @@ func TestParseLiteral(t *testing.T) {
 }
 
 func TestParseNatural(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		pd, ctx, _ = ParseNatural(pd, ctx, nil, 10)
-		return pd, ctx
-	}
+	p, _ := NewParseNaturalPlugin(nil, 10)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -89,16 +81,14 @@ func TestParseNatural(t *testing.T) {
 		},
 	})
 
-	_, _, err := ParseNatural(nil, nil, nil, 37)
+	_, err := NewParseNaturalPlugin(nil, 37)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
 }
 
 func TestParseEOF(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseEOF(pd, ctx, nil)
-	}
+	p := NewParseEOFPlugin(nil)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -131,12 +121,8 @@ func TestParseEOF(t *testing.T) {
 }
 
 func TestParseSpace(t *testing.T) {
-	pEOLOK := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseSpace(pd, ctx, nil, true)
-	}
-	pEOLNotOK := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseSpace(pd, ctx, nil, false)
-	}
+	pEOLOK := NewParseSpacePlugin(nil, true)
+	pEOLNotOK := NewParseSpacePlugin(nil, false)
 
 	runTests(t, pEOLOK, []parseTestData{
 		{
@@ -205,14 +191,8 @@ func TestParseSpace(t *testing.T) {
 }
 
 func TestParseRegexp(t *testing.T) {
-	pWiV := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		p, _ := NewRegexpParser(`^[a]+`)
-		return p.ParseRegexp(pd, ctx, nil)
-	}
-	pWoV := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		p, _ := NewRegexpParser(`[a]+`)
-		return p.ParseRegexp(pd, ctx, nil)
-	}
+	pWiV, _ := NewParseRegexpPlugin(nil, `^[a]+`)
+	pWoV, _ := NewParseRegexpPlugin(nil, `[a]+`)
 
 	runTests(t, pWiV, []parseTestData{
 		{
@@ -271,17 +251,14 @@ func TestParseRegexp(t *testing.T) {
 		},
 	})
 
-	_, err := NewRegexpParser(`[a`)
+	_, err := NewParseRegexpPlugin(nil, `[a`)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
 }
 
 func TestParseLineComment(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		pd, ctx, _ = ParseLineComment(pd, ctx, nil, `//`)
-		return pd, ctx
-	}
+	p, _ := NewParseLineCommentPlugin(nil, `//`)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -322,17 +299,14 @@ func TestParseLineComment(t *testing.T) {
 		},
 	})
 
-	_, _, err := ParseLineComment(nil, nil, nil, ``)
+	_, err := NewParseLineCommentPlugin(nil, ``)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message.")
 	}
 }
 
 func TestParseBlockComment(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		pd, ctx, _ = ParseBlockComment(pd, ctx, nil, `/*`, `*/`)
-		return pd, ctx
-	}
+	p, _ := NewParseBlockCommentPlugin(nil, `/*`, `*/`)
 
 	runTests(t, p, []parseTestData{
 		{
@@ -404,11 +378,11 @@ func TestParseBlockComment(t *testing.T) {
 		},
 	})
 
-	_, _, err := ParseBlockComment(nil, nil, nil, ``, `*/`)
+	_, err := NewParseBlockCommentPlugin(nil, ``, `*/`)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message for missing comment start.")
 	}
-	_, _, err = ParseBlockComment(nil, nil, nil, `/*`, ``)
+	_, err = NewParseBlockCommentPlugin(nil, `/*`, ``)
 	if err == nil || err.Error() == "" {
 		t.Errorf("Expected an error with a message for missing comment end.")
 	}
@@ -417,9 +391,7 @@ func TestParseBlockComment(t *testing.T) {
 const semanticTestValue = "Semantic test!!!"
 
 func TestParseSemantics(t *testing.T) {
-	p := func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		return ParseLiteral(pd, ctx, SemanticsTestOp, `func`)
-	}
+	p := NewParseLiteralPlugin(SemanticsTestOp, "func")
 
 	runTests(t, p, []parseTestData{
 		{
@@ -451,7 +423,7 @@ func newData(srcName string, srcPos int, srcContent string) *ParseData {
 	return pd
 }
 
-func runTests(t *testing.T, sp testParseOp, specs []parseTestData) {
+func runTests(t *testing.T, sp SubparserOp, specs []parseTestData) {
 	var pd2 *ParseData
 	for _, spec := range specs {
 		t.Logf("Parsing source '%s'.", spec.givenParseData.Source.Name)

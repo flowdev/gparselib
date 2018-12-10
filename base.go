@@ -140,6 +140,10 @@ func (e *ParseError) String() string {
 
 // ------- Base for all parsers:
 
+// SubparserOp is a simple filter to the outside and gets the same data as the
+// parent parser.
+type SubparserOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
+
 // SemanticsOp is a simple filter for parser and context data.
 type SemanticsOp func(pd *ParseData, ctx interface{}) (*ParseData, interface{})
 
@@ -168,6 +172,9 @@ func createUnmatchedResult(pd *ParseData, i int, msg string, baseErr error) {
 }
 
 func where(src *SourceData, pos int) string {
+	if src.content == "" {
+		return generateWhereMessage(src.Name, 1, 1, "")
+	}
 	if pos >= src.wherePrevNl {
 		return whereForward(src, pos)
 	} else if pos <= src.wherePrevNl-pos {
