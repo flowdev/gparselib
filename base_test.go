@@ -256,23 +256,3 @@ func TestCreateMatchedResult(t *testing.T) {
 		}
 	}
 }
-
-func TestMinMax(t *testing.T) {
-	specs := []struct {
-		givenA         int
-		givenB         int
-		expectedResult int
-		actualResult   int
-		name           string
-	}{
-		{givenA: 1, givenB: 2, expectedResult: 2, actualResult: max(1, 2), name: "max"},
-		{givenA: 2, givenB: 1, expectedResult: 2, actualResult: max(2, 1), name: "max"},
-		{givenA: 1, givenB: 2, expectedResult: 1, actualResult: min(1, 2), name: "min"},
-		{givenA: 2, givenB: 1, expectedResult: 1, actualResult: min(2, 1), name: "min"},
-	}
-	for _, spec := range specs {
-		if spec.actualResult != spec.expectedResult {
-			t.Errorf("%s(%d, %d) != %d", spec.name, spec.givenA, spec.givenB, spec.expectedResult)
-		}
-	}
-}

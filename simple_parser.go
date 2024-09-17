@@ -49,7 +49,7 @@ func ParseIdent(
 	pd *ParseData, ctx interface{},
 	pluginSemantics SemanticsOp,
 	cfgFirstChar, cfgFollowingChars string,
-) (*ParseData, interface{}, error) {
+) (*ParseData, interface{}) {
 	var n int
 	pos := pd.Source.pos
 	substr := pd.Source.content[pos:]
@@ -77,14 +77,13 @@ func ParseIdent(
 		createUnmatchedResult(pd, 0, "Identifier expected", nil)
 	}
 	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
-	return pd, ctx, nil
+	return pd, ctx
 }
 
 // NewParseIdentPlugin creates a plugin sporting an identifier parser.
 func NewParseIdentPlugin(pluginSemantics SemanticsOp, cfgFirstChar, cfgFollowingChars string) SubparserOp {
 	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
-		pd, ctx, _ = ParseIdent(pd, ctx, pluginSemantics, cfgFirstChar, cfgFollowingChars)
-		return pd, ctx
+		return ParseIdent(pd, ctx, pluginSemantics, cfgFirstChar, cfgFollowingChars)
 	}
 }
 
@@ -438,4 +437,44 @@ func NewParseBlockCommentPlugin(
 		pd, ctx, _ = ParseBlockComment(pd, ctx, pluginSemantics, cfgStart, cfgEnd)
 		return pd, ctx
 	}, nil
+}
+
+// ParseGoodRunes parses as long as the runes are accepted by the configured function.
+// If no good rune is found, an error is returned.
+func ParseGoodRunes(
+	pd *ParseData, ctx interface{},
+	pluginSemantics SemanticsOp,
+	cfgAccept func(rune) bool,
+) (*ParseData, interface{}) {
+	var n int
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
+
+	for {
+		r, size := utf8.DecodeRuneInString(substr)
+		if r == utf8.RuneError {
+			break
+		}
+		if cfgAccept(r) {
+			n += size
+			substr = substr[size:]
+		} else {
+			break
+		}
+	}
+
+	if n > 0 {
+		createMatchedResult(pd, n)
+	} else {
+		createUnmatchedResult(pd, 0, "Acceptable runes expected", nil)
+	}
+	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
+	return pd, ctx
+}
+
+// NewParseGoodRunesPlugin creates a plugin sporting a parser for accepted runes.
+func NewParseGoodRunesPlugin(pluginSemantics SemanticsOp, cfgAccept func(rune) bool) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		return ParseGoodRunes(pd, ctx, pluginSemantics, cfgAccept)
+	}
 }
