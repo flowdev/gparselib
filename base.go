@@ -96,7 +96,7 @@ func NewSourceData(name string, content string) SourceData {
 	return SourceData{name, content, 0, -1, 1}
 }
 
-// Where describes the given integer position in a human readable way.
+// Where describes the given integer position in a human-readable way.
 func (sd SourceData) Where(pos int) string {
 	return where(&sd, pos)
 }
@@ -233,17 +233,4 @@ func tryWhere(src *SourceData, prevNl int, pos int, nextNl int, lineNum int) (wh
 func generateWhereMessage(name string, line int, col int, srcLine string) string {
 	return "File '" + name + "', line " + strconv.Itoa(line) +
 		", column " + strconv.Itoa(col) + ":\n" + srcLine + "\n"
-}
-
-func min(a, b int) int {
-	if a <= b {
-		return a
-	}
-	return b
-}
-func max(a, b int) int {
-	if a >= b {
-		return a
-	}
-	return b
 }

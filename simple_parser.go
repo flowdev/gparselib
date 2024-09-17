@@ -40,6 +40,54 @@ func NewParseLiteralPlugin(pluginSemantics SemanticsOp, cfgLiteral string) Subpa
 	}
 }
 
+// ParseIdent parses an identifier at the current position of the parser.
+// If allows Unicode letters for the first character and Unicode letters
+// and Unicode numbers for all following characters.
+// The configuration has to be the additional characters
+// allowed for the first and following characters.
+func ParseIdent(
+	pd *ParseData, ctx interface{},
+	pluginSemantics SemanticsOp,
+	cfgFirstChar, cfgFollowingChars string,
+) (*ParseData, interface{}, error) {
+	var n int
+	pos := pd.Source.pos
+	substr := pd.Source.content[pos:]
+
+	for {
+		r, size := utf8.DecodeRuneInString(substr)
+		if r == utf8.RuneError {
+			break
+		}
+		if (unicode.IsLetter(r)) || // letters are always allowed
+			(n > 0 && unicode.IsNumber(r)) || // digits are only allowed as following chars
+			(n == 0 && strings.ContainsRune(cfgFirstChar, r)) || // configured for first char
+			(n > 0 && strings.ContainsRune(cfgFollowingChars, r)) { // configured for following chars
+
+			n += size
+			substr = substr[size:]
+		} else { // no ident
+			break
+		}
+	}
+
+	if n > 0 {
+		createMatchedResult(pd, n)
+	} else {
+		createUnmatchedResult(pd, 0, "Identifier expected", nil)
+	}
+	pd, ctx = handleSemantics(pluginSemantics, pd, ctx)
+	return pd, ctx, nil
+}
+
+// NewParseIdentPlugin creates a plugin sporting an identifier parser.
+func NewParseIdentPlugin(pluginSemantics SemanticsOp, cfgFirstChar, cfgFollowingChars string) SubparserOp {
+	return func(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
+		pd, ctx, _ = ParseIdent(pd, ctx, pluginSemantics, cfgFirstChar, cfgFollowingChars)
+		return pd, ctx
+	}
+}
+
 // This is needed for: ParseNatural
 const allDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -145,9 +193,14 @@ func ParseSpace(
 	pos := pd.Source.pos
 	substr := pd.Source.content[pos:]
 
-	for i, char := range substr {
-		if unicode.IsSpace(char) && (cfgEOLOK || char != '\n') {
-			n = i + utf8.RuneLen(char)
+	for {
+		r, size := utf8.DecodeRuneInString(substr)
+		if r == utf8.RuneError {
+			break
+		}
+		if unicode.IsSpace(r) && (cfgEOLOK || r != '\n') {
+			n += size
+			substr = substr[size:]
 		} else {
 			break
 		}
@@ -328,7 +381,7 @@ func ParseBlockComment(
 				if r == '`' {
 					stringType = ' '
 				}
-			case stringType == ' ':
+			default:
 				switch r {
 				case '\'', '"', '`':
 					stringType = r

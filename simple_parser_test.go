@@ -45,6 +45,49 @@ func TestParseLiteral(t *testing.T) {
 	})
 }
 
+func TestParseIdent(t *testing.T) {
+	p := NewParseIdentPlugin(nil, "_", "_-")
+
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("no match", 0, " func\n"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("simple", 0, "myFunc"),
+			expectedResult:   newResult(0, "myFunc", nil, -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 2", 0, "bla231 123"),
+			expectedResult:   newResult(0, "bla231", nil, -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("hyphen+underscore", 2, "12_fu-nc3+45"),
+			expectedResult:   newResult(2, "_fu-nc3", nil, -1),
+			expectedSrcPos:   9,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("all allowed", 2, "12_f_u-n3cöt+45"),
+			expectedResult:   newResult(2, "_f_u-n3cöt", nil, -1),
+			expectedSrcPos:   13,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("hyphen at start", 2, "12-nc3+45"),
+			expectedResult:   newResult(2, "", nil, 2),
+			expectedSrcPos:   2,
+			expectedErrCount: 1,
+		},
+	})
+}
+
 func TestParseNatural(t *testing.T) {
 	p, _ := NewParseNaturalPlugin(nil, 10)
 
