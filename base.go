@@ -105,15 +105,18 @@ func (pd *ParseData) AddError(pos int, msg string, baseErr error) {
 
 // CleanFeedback returns parser errors as a single error and
 // additional feedback.
-func (pd *ParseData) CleanFeedback() {
+func (pd *ParseData) CleanFeedback(cleanEnd bool) {
 	if pd.Result.HasError() || len(pd.Result.Feedback) == 0 { // in error case we need all information
 		return
 	}
 	start := pd.Result.Pos
 	end := start + len(pd.Result.Text) // clean until here
+	if !cleanEnd {
+		end--
+	}
 	cleanFeedback := make([]*FeedbackItem, 0, len(pd.Result.Feedback))
 	for _, fb := range pd.Result.Feedback {
-		if fb.Kind != FeedbackPotentialProblem || fb.Pos < start || fb.Pos >= end {
+		if fb.Kind != FeedbackPotentialProblem || fb.Pos < start || fb.Pos > end {
 			cleanFeedback = append(cleanFeedback, fb)
 		}
 	}

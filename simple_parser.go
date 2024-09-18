@@ -169,22 +169,8 @@ func ParseEOF(
 		)
 	} else {
 		createMatchedResult(pd, 0)
-		cleanEOFFeedback(pd.Result)
 	}
 	return handleSemantics(pluginSemantics, pd, ctx)
-}
-func cleanEOFFeedback(pr *ParseResult) {
-	if pr.HasError() || len(pr.Feedback) == 0 { // in error case we need all information
-		return
-	}
-	pos := pr.Pos
-	cleanFeedback := make([]*FeedbackItem, 0, len(pr.Feedback))
-	for _, fb := range pr.Feedback {
-		if fb.Kind != FeedbackPotentialProblem || fb.Pos != pos {
-			cleanFeedback = append(cleanFeedback, fb)
-		}
-	}
-	pr.Feedback = cleanFeedback
 }
 
 // NewParseEOFPlugin creates a plugin sporting an EOF parser.
