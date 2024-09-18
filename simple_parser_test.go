@@ -519,15 +519,12 @@ func runTests(t *testing.T, sp SubparserOp, specs []parseTestData) {
 				spec.expectedResult.ErrPos, pd2.Result.ErrPos,
 			)
 		}
-		if pd2.Result.HasError() && spec.expectedErrCount <= 0 {
-			t.Logf("Actual errors are: %s", printErrors(pd2.Result.Feedback))
-			t.Fatalf("Expected no error but found at least one.")
-		}
-		if len(pd2.Result.Feedback) != spec.expectedErrCount {
+		actualErrCount := countErrors(pd2.Result.Feedback)
+		if actualErrCount != spec.expectedErrCount {
 			t.Logf("Actual errors are: %s", printErrors(pd2.Result.Feedback))
 			t.Fatalf(
 				"Expected %d errors, got %d.",
-				spec.expectedErrCount, len(pd2.Result.Feedback),
+				spec.expectedErrCount, actualErrCount,
 			)
 		}
 		if spec.expectedErrCount > 0 &&
@@ -541,12 +538,21 @@ func runTests(t *testing.T, sp SubparserOp, specs []parseTestData) {
 func printErrors(fbs []*FeedbackItem) string {
 	result := ""
 	for _, fb := range fbs {
-		if fb.Kind == FeedbackError {
-			result += fb.String() + "\n"
-		}
+		//if fb.Kind == FeedbackError {
+		result += fb.String() + "\n"
+		//}
 	}
 	if result == "" {
 		result = "<EMPTY>"
+	}
+	return result
+}
+func countErrors(fbs []*FeedbackItem) int {
+	result := 0
+	for _, fb := range fbs {
+		if fb.Kind == FeedbackError {
+			result++
+		}
 	}
 	return result
 }

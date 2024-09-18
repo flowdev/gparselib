@@ -25,12 +25,17 @@ func ParseMulti(
 		}
 	}
 
+	var lastFeedback []*FeedbackItem
+	if pd.Result != nil {
+		lastFeedback = pd.Result.Feedback
+	}
 	relPos = pd.Source.pos - orgPos
 	pd.Source.pos = orgPos
 	if len(subresults) >= cfgMin {
 		pd.Result = nil
 		createMatchedResult(pd, relPos)
 		saveAllValuesFeedback(pd, subresults)
+		pd.Result.Feedback = addPotentialProblems(pd.Result.Feedback, lastFeedback)
 	} else {
 		subresult := pd.Result
 		pd.Result = nil
@@ -105,10 +110,11 @@ func ParseOptional(
 
 	pd, ctx = pluginSubparser(pd, ctx)
 
-	// if error: reset to ignore
+	// if error: reset to ignore but save valuable feedback
 	if pd.Result.HasError() {
+		fb := pd.Result.Feedback
 		pd.Result.ErrPos = -1
-		pd.Result.Feedback = nil
+		pd.Result.Feedback = addPotentialProblems(make([]*FeedbackItem, 0, len(fb)), fb)
 		pd.Source.pos = orgPos
 	}
 
@@ -261,6 +267,11 @@ func NewParseBestPlugin(
 	}
 }
 
+//
+// -----------------------------------------------------------------------------------
+// Utility Functions:
+//
+
 func saveAllValuesFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
 	s := make([]interface{}, len(tmpSubresults))
 	for i, subres := range tmpSubresults {
@@ -268,4 +279,33 @@ func saveAllValuesFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
 		pd.Result.Feedback = append(pd.Result.Feedback, subres.Feedback...)
 	}
 	pd.Result.Value = s
+}
+
+func addPotentialProblems(feedback []*FeedbackItem, potentialFeedback []*FeedbackItem) []*FeedbackItem {
+	if potentialFeedback == nil {
+		return feedback
+	}
+	for _, pf := range potentialFeedback {
+		if pf.Kind != FeedbackPotentialProblem {
+			if pf.Kind == FeedbackError {
+				pe := pf.Msg.(*parseError)
+				msg := pe.myErr
+				if pe.baseErr != nil {
+					msg += ": " + pe.baseErr.Error()
+				}
+				pm := &parseMessage{
+					where: pe.where,
+					msg:   msg,
+				}
+				pf.Msg = pm
+				pf.Kind = FeedbackPotentialProblem
+			} else if pf.Kind == FeedbackWarning {
+				pm := pf.Msg.(*parseMessage)
+				pm.msg = "potential problem: " + pm.msg
+				pf.Msg = pm
+				pf.Kind = FeedbackPotentialProblem
+			}
+		}
+	}
+	return append(feedback, potentialFeedback...)
 }

@@ -15,8 +15,10 @@ type FeedbackKind int
 
 // Enumeration of the kinds of feedback we can handle.
 const (
-	FeedbackInfo = FeedbackKind(iota)
+	FeedbackUnknown = FeedbackKind(iota) // should never be used directly but is default value
+	FeedbackInfo
 	FeedbackWarning
+	FeedbackPotentialProblem
 	FeedbackError
 )
 
@@ -33,8 +35,12 @@ func (fi *FeedbackItem) String() string {
 		msg = "INFO: "
 	case FeedbackWarning:
 		msg = "WARNING: "
+	case FeedbackPotentialProblem:
+		msg = "PROBLEM?: "
 	case FeedbackError:
 		msg = "ERROR: "
+	default:
+		msg = "UNKNOWN!!!: "
 	}
 	return msg + fi.Msg.String()
 }
