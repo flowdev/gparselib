@@ -24,6 +24,7 @@ const (
 
 // FeedbackItem is just one item of feedback.
 type FeedbackItem struct {
+	Pos  int
 	Kind FeedbackKind
 	Msg  fmt.Stringer
 }
@@ -71,6 +72,7 @@ func (pd *ParseData) AddInfo(pos int, msg string) {
 	pd.Result.Feedback = append(
 		pd.Result.Feedback,
 		&FeedbackItem{
+			Pos:  pos,
 			Kind: FeedbackInfo,
 			Msg:  newParseMessage(pd, pos, msg),
 		},
@@ -82,6 +84,7 @@ func (pd *ParseData) AddWarning(pos int, msg string) {
 	pd.Result.Feedback = append(
 		pd.Result.Feedback,
 		&FeedbackItem{
+			Pos:  pos,
 			Kind: FeedbackWarning,
 			Msg:  newParseMessage(pd, pos, msg),
 		},
@@ -93,10 +96,27 @@ func (pd *ParseData) AddError(pos int, msg string, baseErr error) {
 	pd.Result.Feedback = append(
 		pd.Result.Feedback,
 		&FeedbackItem{
+			Pos:  pos,
 			Kind: FeedbackError,
 			Msg:  newParseError(pd, pos, msg, baseErr),
 		},
 	)
+}
+
+// CleanFeedback returns parser errors as a single error and
+// additional feedback.
+func (pd *ParseData) CleanFeedback() {
+	if pd.Result.HasError() || len(pd.Result.Feedback) == 0 { // in error case we need all information
+		return
+	}
+	pos := pd.Result.Pos + len(pd.Result.Text) // clean until here
+	cleanFeedback := make([]*FeedbackItem, 0, len(pd.Result.Feedback))
+	for _, fb := range pd.Result.Feedback {
+		if fb.Kind != FeedbackPotentialProblem || fb.Pos >= pos {
+			cleanFeedback = append(cleanFeedback, fb)
+		}
+	}
+	pd.Result.Feedback = cleanFeedback
 }
 
 // GetFeedback returns parser errors as a single error and
@@ -243,7 +263,13 @@ func handleSemantics(pluginSemantics SemanticsOp, pd *ParseData, ctx interface{}
 func createMatchedResult(pd *ParseData, n int) {
 	i := pd.Source.pos
 	n += i
-	pd.Result = &ParseResult{i, pd.Source.content[i:n], nil, -1, make([]*FeedbackItem, 0, 64)}
+	pd.Result = &ParseResult{
+		Pos:      i,
+		Text:     pd.Source.content[i:n],
+		Value:    nil,
+		ErrPos:   -1,
+		Feedback: make([]*FeedbackItem, 0, 64),
+	}
 	pd.Source.pos = n
 }
 func createUnmatchedResult(pd *ParseData, i int, msg string, baseErr error) {
