@@ -272,7 +272,7 @@ func createMatchedResult(pd *ParseData, n int) {
 		Text:     pd.Source.content[i:n],
 		Value:    nil,
 		ErrPos:   -1,
-		Feedback: make([]*FeedbackItem, 0, 64),
+		Feedback: make([]*FeedbackItem, 0, 8),
 	}
 	pd.Source.pos = n
 }

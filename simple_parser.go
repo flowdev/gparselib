@@ -311,7 +311,7 @@ func ParseLineComment(
 	return pd, ctx, nil
 }
 
-// NewParseLineCommentPlugin creates a plugin sporting a number parser.
+// NewParseLineCommentPlugin creates a plugin sporting a line comment parser.
 func NewParseLineCommentPlugin(
 	pluginSemantics SemanticsOp,
 	cfgStart string,
