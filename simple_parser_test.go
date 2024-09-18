@@ -555,3 +555,42 @@ func SemanticsTestOp(pd *ParseData, ctx interface{}) (*ParseData, interface{}) {
 	pd.Result.Value = semanticTestValue
 	return pd, nil
 }
+func TestParseGoodRunes(t *testing.T) {
+	p := NewParseGoodRunesPlugin(nil, func(r rune) bool {
+		return r&7 != 0
+	})
+
+	runTests(t, p, []parseTestData{
+		{
+			givenParseData:   newData("no match", 0, " A"),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("empty", 0, ""),
+			expectedResult:   newResult(0, "", nil, 0),
+			expectedSrcPos:   0,
+			expectedErrCount: 1,
+		}, {
+			givenParseData:   newData("simple", 0, "A"),
+			expectedResult:   newResult(0, "A", nil, -1),
+			expectedSrcPos:   1,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 2", 0, "ABC 123"),
+			expectedResult:   newResult(0, "ABC", nil, -1),
+			expectedSrcPos:   3,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("simple 3", 2, "12ABC "),
+			expectedResult:   newResult(2, "ABC", nil, -1),
+			expectedSrcPos:   5,
+			expectedErrCount: 0,
+		}, {
+			givenParseData:   newData("umlaut", 2, "12Abö "),
+			expectedResult:   newResult(2, "Abö", nil, -1),
+			expectedSrcPos:   6,
+			expectedErrCount: 0,
+		},
+	})
+}

@@ -112,7 +112,7 @@ func ParseOptional(
 		pd.Source.pos = orgPos
 	}
 
-	return pd, ctx
+	return handleSemantics(pluginSemantics, pd, ctx)
 }
 
 // NewParseOptionalPlugin creates a plugin sporting a parser calling a subparser

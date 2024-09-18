@@ -1,6 +1,7 @@
 package gparselib
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -254,5 +255,128 @@ func TestCreateMatchedResult(t *testing.T) {
 				pd.Result.Value,
 			)
 		}
+	}
+}
+
+func TestGetFeedback(t *testing.T) {
+	specs := []struct {
+		name           string
+		givenParseData *ParseData
+		expectedInfo   string
+		expectedError  error
+	}{
+		{
+			name: "no feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: nil,
+				},
+			},
+			expectedInfo:  "",
+			expectedError: nil,
+		}, {
+			name: "empty feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: []*FeedbackItem{},
+				},
+			},
+			expectedInfo:  "",
+			expectedError: nil,
+		}, {
+			name: "info feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: []*FeedbackItem{
+						{
+							Kind: FeedbackInfo,
+							Msg:  &parseMessage{msg: "msg 1"},
+						},
+					},
+				},
+			},
+			expectedInfo:  "INFO: msg 1.",
+			expectedError: nil,
+		}, {
+			name: "warning feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: []*FeedbackItem{
+						{
+							Kind: FeedbackWarning,
+							Msg:  &parseMessage{msg: "msg 1"},
+						},
+					},
+				},
+			},
+			expectedInfo:  "WARNING: msg 1.",
+			expectedError: nil,
+		}, {
+			name: "error feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: []*FeedbackItem{
+						{
+							Kind: FeedbackError,
+							Msg:  &parseError{myErr: "err 1"},
+						},
+					},
+				},
+			},
+			expectedInfo:  "",
+			expectedError: &parseError{myErr: "ERROR: err 1"},
+		}, {
+			name: "all feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: []*FeedbackItem{
+						{
+							Kind: FeedbackError,
+							Msg:  &parseError{myErr: "err 2"},
+						}, {
+							Kind: FeedbackWarning,
+							Msg:  &parseMessage{msg: "warn 2"},
+						}, {
+							Kind: FeedbackInfo,
+							Msg:  &parseMessage{msg: "info 2"},
+						},
+					},
+				},
+			},
+			expectedInfo:  "WARNING: warn 2.\nINFO: info 2.",
+			expectedError: &parseError{myErr: "ERROR: err 2"},
+		}, {
+			name: "multi error feedback",
+			givenParseData: &ParseData{
+				Result: &ParseResult{
+					Feedback: []*FeedbackItem{
+						{
+							Kind: FeedbackError,
+							Msg:  &parseError{myErr: "err 3"},
+						}, {
+							Kind: FeedbackError,
+							Msg:  &parseError{myErr: "err 4"},
+						},
+					},
+				},
+			},
+			expectedInfo:  "",
+			expectedError: errors.New("ERROR: err 3.\nERROR: err 4."),
+		},
+	}
+
+	for _, spec := range specs {
+		t.Run(spec.name, func(tt *testing.T) {
+			actualInfo, actualError := spec.givenParseData.GetFeedback()
+
+			if actualInfo != spec.expectedInfo {
+				t.Errorf("expected feedback msg %q, got: %q", spec.expectedInfo, actualInfo)
+			}
+			if (actualError != nil && spec.expectedError == nil) ||
+				(actualError == nil && spec.expectedError != nil) ||
+				(actualError != nil && spec.expectedError != nil && actualError.Error() != spec.expectedError.Error()) {
+				t.Errorf(`expected feedback error "%v", got: "%v"`, spec.expectedError, actualError)
+			}
+		})
 	}
 }

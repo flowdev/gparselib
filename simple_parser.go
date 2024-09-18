@@ -100,7 +100,7 @@ func ParseNatural(
 ) (*ParseData, interface{}, error) {
 	if cfgRadix < 2 || cfgRadix > 36 {
 		return nil, nil,
-			&ParseError{
+			&parseError{
 				where: "",
 				myErr: fmt.Sprintf(
 					"The radix has to be between 2 and 36, but is: %d",

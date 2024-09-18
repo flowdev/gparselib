@@ -1,6 +1,7 @@
 package gparselib
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -59,15 +60,70 @@ func (pr *ParseResult) HasError() bool {
 	return false
 }
 
+// AddInfo adds a new parse information to the result feedback.
+func (pd *ParseData) AddInfo(pos int, msg string) {
+	pd.Result.Feedback = append(
+		pd.Result.Feedback,
+		&FeedbackItem{
+			Kind: FeedbackInfo,
+			Msg:  newParseMessage(pd, pos, msg),
+		},
+	)
+}
+
+// AddWarning adds a new parser warning to the result feedback.
+func (pd *ParseData) AddWarning(pos int, msg string) {
+	pd.Result.Feedback = append(
+		pd.Result.Feedback,
+		&FeedbackItem{
+			Kind: FeedbackWarning,
+			Msg:  newParseMessage(pd, pos, msg),
+		},
+	)
+}
+
 // AddError adds a new parse error to the result feedback.
 func (pd *ParseData) AddError(pos int, msg string, baseErr error) {
 	pd.Result.Feedback = append(
 		pd.Result.Feedback,
 		&FeedbackItem{
 			Kind: FeedbackError,
-			Msg:  NewParseError(pd, pos, msg, baseErr),
+			Msg:  newParseError(pd, pos, msg, baseErr),
 		},
 	)
+}
+
+// GetFeedback returns parser errors as a single error and
+// additional feedback.
+func (pd *ParseData) GetFeedback() (string, error) {
+	return feedbackInfo(pd.Result), feedbackError(pd.Result)
+}
+func feedbackError(pr *ParseResult) error {
+	b := strings.Builder{}
+	for _, fb := range pr.Feedback {
+		if fb.Kind == FeedbackError {
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fb.String())
+		}
+	}
+	if b.Len() == 0 {
+		return nil
+	}
+	return errors.New(b.String())
+}
+func feedbackInfo(pr *ParseResult) string {
+	b := strings.Builder{}
+	for _, fb := range pr.Feedback {
+		if fb.Kind != FeedbackError {
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(fb.String())
+		}
+	}
+	return b.String()
 }
 
 // ResetSourcePos resets the source position to an old value.
@@ -110,22 +166,41 @@ type ParseData struct {
 
 // NewParseData creates a new, completely initialized ParseData.
 func NewParseData(name string, content string) *ParseData {
-	return &ParseData{NewSourceData(name, content), nil, nil}
+	return &ParseData{Source: NewSourceData(name, content)}
 }
 
-// ParseError holds information about a parser error.
-type ParseError struct {
+// parseMessage holds some information from the parser.
+type parseMessage struct {
+	where string
+	msg   string
+}
+
+// newParseMessage creates a new, completely initialized parseMessage.
+func newParseMessage(pd *ParseData, pos int, msg string) *parseMessage {
+	return &parseMessage{where: pd.Source.Where(pos), msg: msg}
+}
+func (i *parseMessage) String() string {
+	b := &strings.Builder{}
+	b.WriteString(i.where)
+	b.WriteString(i.msg)
+	b.WriteRune('.')
+
+	return b.String()
+}
+
+// parseError holds information about a parser error.
+type parseError struct {
 	where   string
 	myErr   string
 	baseErr error
 }
 
-// NewParseError creates a new, completely initialized ParseError.
-func NewParseError(pd *ParseData, pos int, msg string, baseErr error) *ParseError {
-	return &ParseError{where: pd.Source.Where(pos), myErr: msg, baseErr: baseErr}
+// newParseError creates a new, completely initialized parseError.
+func newParseError(pd *ParseData, pos int, msg string, baseErr error) *parseError {
+	return &parseError{where: pd.Source.Where(pos), myErr: msg, baseErr: baseErr}
 }
 
-func (e *ParseError) Error() string {
+func (e *parseError) Error() string {
 	msg := e.where + e.myErr
 	if e.baseErr != nil {
 		msg += ":\n" + e.baseErr.Error()
@@ -134,7 +209,7 @@ func (e *ParseError) Error() string {
 	}
 	return msg
 }
-func (e *ParseError) String() string {
+func (e *parseError) String() string {
 	return e.Error()
 }
 
