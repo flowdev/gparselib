@@ -109,10 +109,11 @@ func (pd *ParseData) CleanFeedback() {
 	if pd.Result.HasError() || len(pd.Result.Feedback) == 0 { // in error case we need all information
 		return
 	}
-	pos := pd.Result.Pos + len(pd.Result.Text) // clean until here
+	start := pd.Result.Pos
+	end := start + len(pd.Result.Text) // clean until here
 	cleanFeedback := make([]*FeedbackItem, 0, len(pd.Result.Feedback))
 	for _, fb := range pd.Result.Feedback {
-		if fb.Kind != FeedbackPotentialProblem || fb.Pos >= pos {
+		if fb.Kind != FeedbackPotentialProblem || fb.Pos < start || fb.Pos >= end {
 			cleanFeedback = append(cleanFeedback, fb)
 		}
 	}
