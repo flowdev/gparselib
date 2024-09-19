@@ -173,7 +173,7 @@ func ParseAny(
 	pluginSubparsers []SubparserOp, pluginSemantics SemanticsOp,
 ) (*ParseData, interface{}) {
 	orgPos := pd.Source.pos
-	allFeedback := make([]*FeedbackItem, 0, len(pluginSubparsers))
+	subresults := make([]*ParseResult, 0, len(pluginSubparsers))
 	lastPos := 0
 
 	for _, subparser := range pluginSubparsers {
@@ -183,7 +183,7 @@ func ParseAny(
 		}
 		lastPos = max(lastPos, pd.Result.Pos)
 		pd.Source.pos = orgPos
-		allFeedback = append(allFeedback, pd.Result.Feedback...)
+		subresults = append(subresults, pd.Result)
 		pd.Result = nil
 	}
 
@@ -198,7 +198,7 @@ func ParseAny(
 		),
 		nil,
 	)
-	pd.Result.Feedback = append(pd.Result.Feedback, allFeedback...)
+	saveBestFeedback(pd, subresults)
 	return pd, ctx
 }
 
@@ -288,6 +288,31 @@ func saveAllFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
 			pd.Result.Feedback = append(pd.Result.Feedback, subres.Feedback...)
 		}
 	}
+}
+
+func saveBestFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
+	maxFBPos := -1
+	bestFeedback := []*FeedbackItem{}
+	for _, subres := range tmpSubresults {
+		fbPos := maxFeedbackPos(subres.Feedback)
+		if fbPos > maxFBPos {
+			maxFBPos = fbPos
+			bestFeedback = subres.Feedback
+		} else if fbPos == maxFBPos {
+			bestFeedback = append(bestFeedback, subres.Feedback...)
+		}
+	}
+	pd.Result.Feedback = append(pd.Result.Feedback, bestFeedback...)
+}
+
+func maxFeedbackPos(feedback []*FeedbackItem) int {
+	maxPos := -1
+	for _, fb := range feedback {
+		if fb.Pos > maxPos {
+			maxPos = fb.Pos
+		}
+	}
+	return maxPos
 }
 
 func addPotentialProblems(feedback []*FeedbackItem, potentialFeedback []*FeedbackItem) []*FeedbackItem {
