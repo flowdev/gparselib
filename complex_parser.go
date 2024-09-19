@@ -142,6 +142,7 @@ func ParseAll(
 		if pd.Result.HasError() {
 			pd.Source.pos = orgPos
 			pd.Result.Pos = orgPos // make result 'our result'
+			saveAllFeedback(pd, subresults)
 			return pd, ctx
 		}
 		subresults[i] = pd.Result
@@ -279,6 +280,14 @@ func saveAllValuesFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
 		pd.Result.Feedback = append(pd.Result.Feedback, subres.Feedback...)
 	}
 	pd.Result.Value = s
+}
+
+func saveAllFeedback(pd *ParseData, tmpSubresults []*ParseResult) {
+	for _, subres := range tmpSubresults {
+		if subres != nil {
+			pd.Result.Feedback = append(pd.Result.Feedback, subres.Feedback...)
+		}
+	}
 }
 
 func addPotentialProblems(feedback []*FeedbackItem, potentialFeedback []*FeedbackItem) []*FeedbackItem {
