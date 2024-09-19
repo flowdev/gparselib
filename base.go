@@ -1,8 +1,10 @@
 package gparselib
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -126,6 +128,13 @@ func (pd *ParseData) CleanFeedback(cleanEnd bool) {
 // GetFeedback returns parser errors as a single error and
 // additional feedback.
 func (pd *ParseData) GetFeedback() (string, error) {
+	slices.SortFunc(pd.Result.Feedback, func(a, b *FeedbackItem) int {
+		if n := cmp.Compare(a.Pos, b.Pos); n != 0 {
+			return n
+		}
+		// If positions are equal, order by message
+		return strings.Compare(a.Msg.String(), b.Msg.String())
+	})
 	return feedbackInfo(pd.Result), feedbackError(pd.Result)
 }
 func feedbackError(pr *ParseResult) error {

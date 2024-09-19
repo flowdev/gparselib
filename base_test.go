@@ -334,9 +334,11 @@ func TestGetFeedback(t *testing.T) {
 							Kind: FeedbackError,
 							Msg:  &parseError{myErr: "err 2"},
 						}, {
+							Pos:  1,
 							Kind: FeedbackWarning,
 							Msg:  &parseMessage{msg: "warn 2"},
 						}, {
+							Pos:  2,
 							Kind: FeedbackInfo,
 							Msg:  &parseMessage{msg: "info 2"},
 						},
